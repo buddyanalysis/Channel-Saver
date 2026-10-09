@@ -792,3 +792,39 @@ a.built-by:hover .built-name { color: #d6336c; }
 .fd-rowcard.full .fd-rowstats { grid-column: 2 / 4; grid-row: 2; grid-template-columns: repeat(4, auto auto); justify-content: start; gap: 2px 8px; }
 .fd-rowcard.full .fd-rowstats b { text-align: left; margin-right: 10px; }
 .fd-rowcard.full .fd-rowstats span { white-space: nowrap; }
+
+/* ---------- Responsive: tablets and phones ---------- */
+@media (max-width: 900px) {
+  .sim-form, .sim-form.sim-form3, .sw-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sim-form > :first-child, .sw-form > :first-child { grid-column: 1 / -1; }
+  .fd-two { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .main { padding: 12px 12px 60px; }
+  .top { gap: 8px; }
+  .top h1 { font-size: 19px; }
+  /* Dashboard: numbers two by two, tools one per row */
+  .home-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .home-stats .stat { padding: 12px; }
+  .home-stats .v { font-size: 22px; }
+  .home-tools { grid-template-columns: 1fr; gap: 10px; }
+  .home-tool { padding: 14px; }
+  .home-hello h2 { font-size: 21px; }
+  /* Niche Finder */
+  .fd-searchrow { flex-wrap: wrap; }
+  .fd-searchrow .btn { width: 100%; justify-content: center; }
+  .fd-controls > * { flex: 1 1 140px; }
+  .fd-sec { padding: 14px 12px; border-radius: 14px; }
+  .fd-tabs { overflow-x: auto; scrollbar-width: none; gap: 16px; }
+  .fd-tabs::-webkit-scrollbar { display: none; }
+  .fd-tab { flex-shrink: 0; white-space: nowrap; }
+  .fd-grid-vid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .fd-vt { font-size: 12.5px; }
+  .fd-vm { font-size: 11.5px; }
+  .fd-cats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .fd-cat { padding: 10px 12px; }
+  /* Similar channels and Swipe file: search on its own row, filters below */
+  .sim-form, .sim-form.sim-form3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sw-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sw-grid { grid-template-columns: 1fr; }
+}
