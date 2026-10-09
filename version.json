@@ -1,5 +1,5 @@
 {
-  "version": "1.7.1",
+  "version": "1.8.0",
   "download": "https://github.com/buddyanalysis/Channel-Saver/releases/latest/download/channel-saver.zip",
-  "notes": "Activation fixes: if Activate doesn't work, click the Restart button on the activation screen. Keys stay active even when offline."
+  "notes": "New Niche Finder: outlier channels, rising niches, viral videos on small channels, trending keywords. New Dashboard with all tools as cards and a cleaner sidebar."
 }
