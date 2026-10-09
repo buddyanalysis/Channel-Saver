@@ -754,3 +754,16 @@ body.has-restart .side { top: 46px; height: calc(100vh - 46px); }
   .fd-rowstats, .fd-rowx, .fd-rowact { grid-column: 1 / -1; justify-self: start; }
 }
 .side-tools[open] { display: flex; flex-direction: column; gap: 2px; }
+
+/* "Built with 💔 by Asif" — same pill as on letrestart.com */
+.built-by {
+  margin-left: auto; flex-shrink: 0; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 7px 14px; border-radius: 999px;
+  border: 1px solid #f3c6d0; background: #fff5f7; color: #1f1f27;
+  font-size: 13.5px; font-weight: 700; letter-spacing: .01em;
+}
+.built-heart { font-size: 13px; }
+:root[data-theme="dark"] .built-by { background: #2a1820; border-color: #5a2c3a; color: #fff; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .built-by { background: #2a1820; border-color: #5a2c3a; color: #fff; } }
+@media (max-width: 700px) { .built-by { display: none; } }

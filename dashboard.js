@@ -17,7 +17,7 @@ const VERSION = chrome.runtime.getManifest().version;
  * reloaded, so after copying new files the two can disagree — then saving
  * silently breaks. When they differ, ask for a one-click restart.
  */
-const BUILD = '1.8.0';
+const BUILD = '1.8.1';
 
 function showRestart(reason) {
   if (document.getElementById('restartBanner')) return;
