@@ -1,5 +1,5 @@
 {
-  "version": "1.9.0",
+  "version": "1.9.1",
   "download": "https://github.com/buddyanalysis/Channel-Saver/releases/latest/download/channel-saver.zip",
-  "notes": "Updates now keep all your data and keys. One-time: after this update restore your backup and ask your admin to reset your key device."
+  "notes": "CTR test stays in its own tab; quieter YouTube browsing; clickable dashboard numbers."
 }
