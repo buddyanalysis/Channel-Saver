@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Channel Saver",
-  "version": "1.9.3",
+  "version": "1.9.4",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtwwz7izBYZOGo2y1u2B9nJaWz8pizCPTrqyulUUpRcUxvUqDwdkJeHEMesPGaTQ79tDhwnppmAm8gzCpdthFyyxYq7VL8DBOgEBbvr1pfC/lfby6+vRiB3Ocg5BDLIDXV2ipqNHWZRw4iVNeDsD3JPLoajVYmObVfqguuivrmzuh5BOoXHZnsaAIPn5xOu7DXoXswyGy5My7R4YgHxLnp8b1yZFWWTPtxcLRG49bqRETSz23YtMPgBRv2B6y5iwt8lHq9DlnTIyagnfB8ZmQpN1nL/7idsMsk8EbWTnKLpw0WYfCG2dLF8o1I5/K6xxwy08ZM1K3W605k3XmsVm0xwIDAQAB",
   "description": "Save YouTube channels and videos into niches, find outliers and similar channels, track competitors and test thumbnails.",
   "permissions": [

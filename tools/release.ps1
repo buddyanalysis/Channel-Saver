@@ -23,14 +23,18 @@ $download = "https://github.com/$repo/releases/download/v$Version/channel-saver-
 $files = @(Get-ChildItem -File | Where-Object { $_.Extension -in '.js', '.css', '.html', '.json' -and $_.Name -ne 'version.json' } | ForEach-Object Name) + 'INSTALL.txt', 'lib', 'icons'
 
 # 1. manifest version (keeps the file's formatting otherwise)
-$manifest = Get-Content manifest.json -Raw
+$manifest = [IO.File]::ReadAllText((Join-Path $root 'manifest.json'), [Text.Encoding]::UTF8)
 $manifest = $manifest -replace '"version":\s*"[^"]+"', "`"version`": `"$Version`""
 [IO.File]::WriteAllText((Join-Path $root 'manifest.json'), $manifest)
 # The dashboard compares its own build number with the running manifest to
 # spot an extension that wasn't reloaded after an update - keep them equal.
-$dash = Get-Content dashboard.js -Raw
+$dash = [IO.File]::ReadAllText((Join-Path $root 'dashboard.js'), [Text.Encoding]::UTF8)
 $dash = $dash -replace "const BUILD = '[^']+';", "const BUILD = '$Version';"
 [IO.File]::WriteAllText((Join-Path $root 'dashboard.js'), $dash)
+
+# Stop if a file got double-encoded (UTF-8 read as ANSI: a middle dot becomes C3/C2 junk, emoji start with F0 178).
+$bad = Get-ChildItem -File -Include *.js,*.html,*.css -Recurse -Path . | Where-Object { $_.FullName -notmatch '\\(dist|node_modules|\.git)\\' -and ([IO.File]::ReadAllText($_.FullName, [Text.Encoding]::UTF8) -match '\u00C3[\u0080-\u00BF]|\u00C2\u00B7|\u00F0\u0178') }
+if ($bad) { throw "Broken text encoding in: $($bad.Name -join ', ')" }
 
 # 2. ZIP with a top-level channel-saver folder
 $stage = Join-Path $env:TEMP "cs-release\channel-saver"
