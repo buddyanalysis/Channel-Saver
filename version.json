@@ -1,5 +1,5 @@
 {
-  "version": "1.7.0",
+  "version": "1.7.1",
   "download": "https://github.com/buddyanalysis/Channel-Saver/releases/latest/download/channel-saver.zip",
-  "notes": "Activation key needed (ask your admin). Optional AI: thumbnail review, title ideas, niche analysis, reply drafts. CTR Tester: Improve CTR + Copy instructions. Loading indicator, better Save menu, compact cards."
+  "notes": "Activation fixes: if Activate doesn't work, click the Restart button on the activation screen. Keys stay active even when offline."
 }
