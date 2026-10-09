@@ -1,5 +1,5 @@
 {
-  "version": "1.5.0",
+  "version": "1.6.0",
   "download": "https://github.com/buddyanalysis/Channel-Saver/releases/latest/download/channel-saver.zip",
-  "notes": "Auto-backup every 12 hours with one-click restore. Share cards. Similar channels quick / in-depth + sorting. Most popular videos in the hover preview. Similar videos by title format. Thumbnail test inside your real YouTube feed."
+  "notes": "Save videos into niches from the video page. Similar channels in a side panel on YouTube (20+, faster). CTR Tester. Assisted reply for comments. Cleaner video tools."
 }
