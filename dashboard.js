@@ -1,5 +1,5 @@
 import {
-  computeMetrics, DEFAULT_RPM, fmtNum, fmtMoney, fmtAge, fmtDuration, fmtChannelAge, OUTLIER_X,
+  computeMetrics, fmtNum, fmtAge, fmtDuration, fmtChannelAge, OUTLIER_X,
 } from './lib/metrics.js';
 
 import { schedule, uploadStats, fmtWhen, fmtHour, WEEKDAYS } from './lib/track.js';
@@ -83,21 +83,26 @@ const ytVideo = (id) => `https://www.youtube.com/watch?v=${id}`;
 const ytShort = (id) => `https://www.youtube.com/shorts/${id}`;
 const nicheById = (id) => db.niches.find((n) => n.id === id);
 
-/** RPM for a channel: the highest custom RPM among its niches, else the default. */
+/** RPM the user set on one of the channel's niches (highest wins), or null. */
 function rpmFor(ch) {
   const custom = ch.nicheIds.map(nicheById).filter((n) => n && n.rpmHigh != null);
-  if (!custom.length) return DEFAULT_RPM;
+  if (!custom.length) return null;
   const n = custom.sort((a, b) => b.rpmHigh - a.rpmHigh)[0];
   return { low: n.rpmLow ?? n.rpmHigh, high: n.rpmHigh };
 }
 
+function rpmText(ch) {
+  const r = rpmFor(ch);
+  if (!r) return 'Not set';
+  return r.low === r.high ? `$${r.low}` : `$${r.low}–$${r.high}`;
+}
+
 const metricsCache = new Map();
 function M(ch) {
-  const rpm = rpmFor(ch);
-  const key = `${ch.channelId}:${ch.fetchedAt}:${rpm.low}:${rpm.high}:${(ch.snapshots || []).length}`;
+  const key = `${ch.channelId}:${ch.fetchedAt}:${(ch.snapshots || []).length}`;
   let m = metricsCache.get(ch.channelId);
   if (!m || m.key !== key) {
-    m = { key, ...computeMetrics(ch, rpm), rpm };
+    m = { key, ...computeMetrics(ch) };
     metricsCache.set(ch.channelId, m);
   }
   return m;
@@ -141,7 +146,6 @@ function visibleChannels() {
   const by = {
     added: (c) => c.addedAt,
     score: (c) => M(c).score,
-    revenue: (c) => M(c).revenue.high,
     monthly: (c) => M(c).monthlyViews,
     subs: (c) => c.subs || 0,
     growth: (c) => M(c).growth?.subsPerDay ?? -Infinity,
@@ -303,7 +307,7 @@ function card(ch) {
       h('div.meta', `${ch.handle || ''} · ${fmtNum(ch.subs)} subs · ${fmtNum(ch.videoCount)} videos`)),
     h('div.chips', channelChips(ch, m)),
     watch ? competitorMetrics(ch, m) : h('div.metrics',
-      metric('Est. / month', m.revenue.high ? `${fmtMoney(m.revenue.low)}–${fmtMoney(m.revenue.high)}` : '—'),
+      h('div.metric', { title: 'Set RPM from the niche ⋯ menu → RPM & notes' }, h('div.k', 'RPM'), h('div.v' + (rpmFor(ch) ? '' : '.muted'), rpmText(ch))),
       metric('Views / month', fmtNum(m.monthlyViews)),
       metric('Subs growth', g.v, g.cls),
       metric('Uploads / week', m.uploadsPerWeek != null ? m.uploadsPerWeek.toFixed(1) : '—'),
@@ -343,7 +347,7 @@ function table(list) {
     ['Subs', (c) => fmtNum(c.subs), 'num'],
     ['Growth', (c) => growthText(M(c)).v, 'num'],
     ['Views / mo', (c) => fmtNum(M(c).monthlyViews), 'num'],
-    ['Est. / mo', (c) => (M(c).revenue.high ? `${fmtMoney(M(c).revenue.low)}–${fmtMoney(M(c).revenue.high)}` : '—'), 'num'],
+    ['RPM', (c) => (rpmFor(c) ? rpmText(c) : '—'), 'num'],
     ['Median views', (c) => fmtNum(M(c).medianViews), 'num'],
     ['Uploads / wk', (c) => (M(c).uploadsPerWeek != null ? M(c).uploadsPerWeek.toFixed(1) : '—'), 'num'],
     ['Outliers', (c) => M(c).outliers.length, 'num'],
@@ -725,12 +729,11 @@ function renderDrawer() {
 
       ch.competitor ? trackingSection(ch) : null,
 
-      h('div.section', h('h4', 'Earnings estimate'),
+      h('div.section', h('h4', 'Views & RPM'),
         h('div.kv',
-          stat('Est. per month', m.revenue.high ? `${fmtMoney(m.revenue.low)}–${fmtMoney(m.revenue.high)}` : '—', `RPM $${m.rpm.low}–$${m.rpm.high}`),
+          stat('RPM', rpmText(ch), rpmFor(ch) ? 'set on the niche' : 'set it from the niche ⋯ menu'),
           stat('Views per month', fmtNum(m.monthlyViews), m.monthlySource),
-          stat('Est. per year', m.revenue.high ? `${fmtMoney(m.revenue.low * 12)}–${fmtMoney(m.revenue.high * 12)}` : '—')),
-        h('div.note', 'AdSense estimate only (no sponsors). Set the RPM for a niche from its ⋯ menu — Urdu/Hindi audiences usually earn $0.5–$2, English finance/tech can earn $10+. ', m.monetizable ? '' : 'This channel has under 1,000 subscribers, so it is probably not monetised yet.')),
+          stat('Monetisation', m.monetizable ? '1K+ subs' : 'Under 1K subs', m.monetizable ? 'meets the subscriber rule' : 'probably not monetised yet'))),
 
       h('div.section', h('h4', 'Growth'),
         h('div.kv',
@@ -881,15 +884,15 @@ function closeModal() {
 }
 
 function nicheSettings(n) {
-  const low = h('input.input', { type: 'number', min: 0, step: 0.1, placeholder: String(DEFAULT_RPM.low) });
-  const high = h('input.input', { type: 'number', min: 0, step: 0.1, placeholder: String(DEFAULT_RPM.high) });
+  const low = h('input.input', { type: 'number', min: 0, step: 0.1, placeholder: '1' });
+  const high = h('input.input', { type: 'number', min: 0, step: 0.1, placeholder: '4' });
   const notes = h('textarea', { rows: 5, placeholder: 'What you learned about this niche, video ideas, competitors…' });
   low.value = n.rpmLow ?? '';
   high.value = n.rpmHigh ?? '';
   notes.value = n.notes || '';
   openModal(
     h('h3', n.title),
-    h('p', 'RPM = what YouTube pays per 1,000 views. It is used for the earnings estimate of every channel in this niche.'),
+    h('p', 'RPM = what YouTube pays per 1,000 views. It is shown on every channel in this niche.'),
     h('div.row', h('label.field', 'RPM low ($)', low), h('label.field', 'RPM high ($)', high)),
     h('label.field', 'Notes', notes),
     h('div.actions',
@@ -912,8 +915,28 @@ function addModal() {
   const area = h('textarea', { rows: 7, placeholder: 'https://www.youtube.com/@channel\n@anotherchannel\nhttps://www.youtube.com/watch?v=…' });
   const sel = h('select.input',
     h('option', { value: '' }, 'No niche'),
-    db.niches.map((n) => h('option', { value: n.id }, n.title)));
+    [...db.niches].sort((a, b) => a.title.localeCompare(b.title)).map((n) => h('option', { value: n.id }, n.title)),
+    h('option', { value: '__new' }, '+ Create new niche…'));
   if (nicheById(ui.view)) sel.value = ui.view;
+  const newName = h('input.input', { placeholder: 'New niche name, e.g. "Ancient history"', maxlength: 80 });
+  const newField = h('label.field', { hidden: true }, 'New niche name', newName);
+  sel.addEventListener('change', () => {
+    newField.hidden = sel.value !== '__new';
+    if (!newField.hidden) newName.focus();
+  });
+  // Resolves the chosen niche to an id, creating it first if needed.
+  async function targetNiche() {
+    if (sel.value !== '__new') return sel.value || null;
+    const title = newName.value.trim();
+    if (!title) throw new Error('Write a name for the new niche');
+    const { niche } = await send('createNiche', { title });
+    // Keep it selected for the rest of this run and any next run.
+    sel.insertBefore(h('option', { value: niche.id }, niche.title), sel.lastElementChild);
+    sel.value = niche.id;
+    newField.hidden = true;
+    newName.value = '';
+    return niche.id;
+  }
   const bar = h('div', { style: { width: '0%' } });
   const progress = h('div.progress', { hidden: true }, bar);
   const log = h('div.log');
@@ -924,6 +947,14 @@ function addModal() {
   async function run() {
     const lines = [...new Set(area.value.split(/[\r\n,\t]+/).map((s) => s.trim()).filter(Boolean))];
     if (!lines.length) return;
+    let nicheId;
+    try {
+      nicheId = await targetNiche();
+    } catch (e) {
+      toast(e.message, true);
+      newName.focus();
+      return;
+    }
     stop = false;
     go.disabled = true;
     area.disabled = true;
@@ -933,7 +964,7 @@ function addModal() {
     for (let i = 0; i < lines.length && !stop; i++) {
       bar.style.width = `${(i / lines.length) * 100}%`;
       try {
-        const res = await send('add', { input: lines[i], nicheId: sel.value || null });
+        const res = await send('add', { input: lines[i], nicheId });
         log.prepend(h('div', `${res.already ? '• Already there' : '✓ Added'}: ${res.channel.title}`));
       } catch (e) {
         failed.push(lines[i]);
@@ -954,6 +985,7 @@ function addModal() {
     h('p', 'Paste channel or video links, one per line. Many at once is fine — they are added one by one. Failed links stay in the box.'),
     h('label.field', 'Links', area),
     h('label.field', 'Put them in', sel),
+    newField,
     progress, log,
     h('div.actions', cancel, go),
   );
@@ -980,7 +1012,7 @@ function exportCsv() {
   const list = visibleChannels();
   if (!list.length) return toast('Nothing to export', true);
   const head = ['Channel', 'Handle', 'URL', 'Niches', 'Subscribers', 'Videos', 'Total views', 'Joined', 'Channel age (days)', 'Country',
-    'Opportunity score', 'Median views', 'Views per month', 'Est. earnings low ($/mo)', 'Est. earnings high ($/mo)', 'Subs per day',
+    'Opportunity score', 'Median views', 'Views per month', 'RPM', 'Subs per day',
     'Uploads per week', 'Outlier videos', 'Format', 'Competitor', 'Need to look', 'Added', 'Notes'];
   const esc = (v) => {
     const s = v == null ? '' : String(v);
@@ -990,7 +1022,7 @@ function exportCsv() {
     const m = M(c);
     return [c.title, c.handle, c.url, c.nicheIds.map((id) => nicheById(id)?.title).filter(Boolean).join('; '), c.subs, c.videoCount, c.totalViews,
       c.joined, m.ageDays != null ? Math.round(m.ageDays) : '', c.country, m.score, Math.round(m.medianViews), Math.round(m.monthlyViews),
-      Math.round(m.revenue.low), Math.round(m.revenue.high), m.growth ? m.growth.subsPerDay.toFixed(1) : '',
+      rpmFor(c) ? rpmText(c) : '', m.growth ? m.growth.subsPerDay.toFixed(1) : '',
       m.uploadsPerWeek != null ? m.uploadsPerWeek.toFixed(1) : '', m.outliers.length, m.format,
       c.competitor ? 'Yes' : '', c.starred ? 'Yes' : '', new Date(c.addedAt).toLocaleDateString(), c.notes];
   });

@@ -1,6 +1,6 @@
 # Channel Saver
 
-Chrome extension: YouTube channels ko niches mein save karein, aur un ki growth, outlier videos, kamai ka andaza aur competitors ki har upload (exact time ke saath) track karein.
+Chrome extension: YouTube channels ko niches mein save karein, aur un ki growth, outlier videos aur competitors ki har upload (exact time ke saath) track karein.
 
 Na Node.js chahiye, na server. Sirf Google Chrome.
 
@@ -31,7 +31,7 @@ Aap ka saara data (channels, niches, notes) save rehta hai.
 
 - YouTube par Save button — niche dhoondhein ya naya niche likhein
 - Har channel: subscribers, total views, join date, country, top & outlier videos
-- Kamai ka andaza (niche ka RPM aap set karein), Opportunity score 0–100
+- Har niche ka RPM aap set karein, Opportunity score 0–100
 - Rozana growth tracking aur chart
 - **Competitors:** har 30 minute check — exact upload time, upload schedule (din + waqt),
   agli video kab aayegi, pehle 24 ghante ke views, views per hour, likes, title changes,

@@ -413,3 +413,5 @@ table.uploads .vt-cell { white-space: normal; min-width: 200px; max-width: 260px
 .log-item { display: flex; gap: 10px; padding: 8px 6px; border-bottom: 1px solid var(--line); font-size: 13px; }
 .log-item .li { width: 18px; text-align: center; color: var(--accent); flex-shrink: 0; }
 .log-item .vm { font-size: 12px; color: var(--muted); }
+
+.metric .v.muted { color: var(--faint); font-weight: 500; }

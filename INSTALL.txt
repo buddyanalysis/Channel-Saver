@@ -30,7 +30,7 @@ ISTEMAL KAISE KAREIN
 - Button dabayein. Upar wale box mein niche dhoondhein aur us par click karein,
   ya neeche "New niche" mein naya naam likh kar Enter dabayein.
 - Upar Chrome mein Channel Saver ke icon par click karein. Aap ki poori library khul jayegi:
-  kamai ka andaza, growth, outlier videos, score, notes.
+  RPM, growth, outlier videos, score, notes.
 - Bohat saare channels ek saath? Dashboard mein "+ Add channels" dabayein aur links paste karein,
   har line mein ek link.
 - Dark/Light mode: dashboard mein upar ◐ button.
@@ -56,6 +56,6 @@ AGAR MASLA HO
 ZAROORI BAATEIN
 ---------------
 - Aap ka saara data sirf aap ke Chrome mein rehta hai. Kisi server par nahi jata.
-- Kamai sirf andaza hai (AdSense). Har niche ka RPM aap khud set kar sakte hain
-  (niche ke ⋯ menu mein "RPM & notes").
+- Har niche ka RPM aap khud set kar sakte hain (niche ke ⋯ menu mein "RPM & notes").
+  Woh us niche ke har channel par nazar aata hai.
 - Extension sirf YouTube se public data padhti hai. Aap ka YouTube account use nahi karti.
