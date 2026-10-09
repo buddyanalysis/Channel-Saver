@@ -6,6 +6,7 @@ import { schedule, uploadStats, fmtWhen, fmtHour, WEEKDAYS } from './lib/track.j
 import { initCtr, renderCtr } from './ctr.js';
 import { initAi, aiSettingsSection, aiChannelSection, aiNicheSection } from './ai-ui.js';
 import { gate, licenseInfo } from './activation.js';
+import { initFinder, renderFinder, FINDER_TABS, finderTab, setFinderTab } from './finder-ui.js';
 
 const VERSION = chrome.runtime.getManifest().version;
 
@@ -16,7 +17,7 @@ const VERSION = chrome.runtime.getManifest().version;
  * reloaded, so after copying new files the two can disagree — then saving
  * silently breaks. When they differ, ask for a one-click restart.
  */
-const BUILD = '1.7.1';
+const BUILD = '1.8.0';
 
 function showRestart(reason) {
   if (document.getElementById('restartBanner')) return;
@@ -38,7 +39,7 @@ if (VERSION !== BUILD) showRestart();
 
 let db = { niches: [], channels: {}, settings: {} };
 const ui = {
-  view: 'all', // 'all' | 'unsorted' | 'starred' | 'gone' | nicheId
+  view: 'home', // 'home' | 'all' | 'unsorted' | 'starred' | 'gone' | nicheId | a tool
   search: '',
   nicheSearch: '',
   sort: 'added',
@@ -144,8 +145,8 @@ function M(ch) {
 
 /* ---------- filtering ---------- */
 
-const SPECIAL_VIEWS = ['all', 'starred', 'unsorted', 'gone', 'competitors', 'similar', 'swipe', 'thumbtest'];
-const VIEW_TITLES = { all: 'All channels', starred: 'Need to look', unsorted: 'No niche', gone: 'Removed by YouTube', competitors: 'Competitors', similar: 'Similar channels', swipe: 'Swipe file', thumbtest: 'CTR Tester' };
+const SPECIAL_VIEWS = ['home', 'all', 'starred', 'unsorted', 'gone', 'competitors', 'finder', 'similar', 'swipe', 'thumbtest'];
+const VIEW_TITLES = { all: 'All channels', starred: 'Need to look', unsorted: 'No niche', gone: 'Removed by YouTube', competitors: 'Competitors', home: 'Dashboard', finder: 'Niche Finder', similar: 'Similar channels', swipe: 'Swipe file', thumbtest: 'CTR Tester' };
 
 function inView(ch) {
   if (ui.view === 'gone') return ch.status === 'gone';
@@ -206,25 +207,41 @@ function renderSide() {
 
   const live = all.filter((c) => c.status !== 'gone');
   const gone = all.length - live.length;
-  set($('nav'), 
-    item('all', 'All channels', all.length),
-    item('starred', '🔖 Need to look', live.filter((c) => c.starred).length, {
-      drop: (id) => send('updateChannel', { channelId: id, patch: { starred: true } }).then(() => toast('Added to Need to look')),
-    }),
-    item('unsorted', 'No niche', live.filter((c) => !c.nicheIds.length).length),
-    item('swipe', '📌 Swipe file', (db.swipe || []).length || ''),
-    gone ? item('gone', 'Removed by YouTube', gone) : null,
-  );
-  set($('discover'),
-    item('similar', '🔍 Similar channels', Object.keys(db.similar || {}).length || ''),
-    item('thumbtest', '🎯 CTR Tester', ''));
-  set($('watch'),
-    item('competitors', '⚔ Competitors', live.filter((c) => c.competitor).length, {
-      drop: (id) => {
-        if (db.channels[id]?.competitor) return toast('Already a competitor');
-        return send('updateChannel', { channelId: id, patch: { competitor: true } }).then(() => toast('Added to competitors — checked every 6 hours'));
-      },
-    }));
+  const competitorsItem = (label) => item('competitors', label, live.filter((c) => c.competitor).length, {
+    drop: (id) => {
+      if (db.channels[id]?.competitor) return toast('Already a competitor');
+      return send('updateChannel', { channelId: id, patch: { competitor: true } }).then(() => toast('Added to competitors — checked every 6 hours'));
+    },
+  });
+  const group = toolOf(ui.view);
+  $('sideBack').hidden = group === 'home';
+  $('sideTool').hidden = group === 'home';
+  $('sideTool').textContent = TOOL_NAMES[group] || '';
+  $('nicheBlock').hidden = group !== 'library';
+  if (group === 'home') {
+    set($('nav'),
+      item('home', '🏠 Dashboard', ''),
+      h('div.side-label', h('span', 'Tools')),
+      item('finder', '🧭 Niche Finder', ''),
+      item('all', '📚 My Library', live.length),
+      item('similar', '🔍 Similar channels', Object.keys(db.similar || {}).length || ''),
+      competitorsItem('⚔ Competitors'),
+      item('thumbtest', '🎯 CTR Tester', ''),
+      item('swipe', '📌 Swipe file', (db.swipe || []).length || ''));
+  } else if (group === 'library') {
+    set($('nav'),
+      item('all', 'All channels', all.length),
+      item('starred', '🔖 Need to look', live.filter((c) => c.starred).length, {
+        drop: (id) => send('updateChannel', { channelId: id, patch: { starred: true } }).then(() => toast('Added to Need to look')),
+      }),
+      item('unsorted', 'No niche', live.filter((c) => !c.nicheIds.length).length),
+      competitorsItem('⚔ Competitors'),
+      gone ? item('gone', 'Removed by YouTube', gone) : null);
+  } else if (group === 'finder') {
+    set($('nav'), FINDER_TABS.map(([tab, label]) => h('button.nav-item' + (finderTab() === tab ? '.on' : ''), { onclick: () => { setFinderTab(tab); render(); } }, h('span.name', label), h('span.n', ''))));
+  } else {
+    set($('nav'));
+  }
 
   const q = ui.nicheSearch.trim().toLowerCase();
   const niches = [...db.niches]
@@ -251,7 +268,16 @@ function renderSide() {
   $('notify').checked = db.settings.notify !== false;
 }
 
+/* Which tool a view belongs to (drives the two-level sidebar). */
+const TOOL_NAMES = { library: 'My Library', finder: 'Niche Finder', similar: 'Similar channels', competitors: 'Competitors', thumbtest: 'CTR Tester', swipe: 'Swipe file' };
+function toolOf(view) {
+  if (view === 'home') return 'home';
+  if (['finder', 'similar', 'competitors', 'thumbtest', 'swipe'].includes(view)) return view;
+  return 'library';
+}
+
 function setView(id) {
+  if (id === 'finder' && ui.view !== 'finder') setFinderTab('overview');
   ui.view = id;
   saveUi();
   $('side').classList.remove('open');
@@ -408,14 +434,16 @@ function render() {
   const niche = nicheById(ui.view);
   $('viewTitle').textContent = niche ? niche.title
     : VIEW_TITLES[ui.view];
-  const listView = !['similar', 'swipe', 'thumbtest'].includes(ui.view);
+  const listView = !['home', 'finder', 'similar', 'swipe', 'thumbtest'].includes(ui.view);
   document.querySelector('.toolbar').hidden = !listView;
   $('search').hidden = !listView;
   $('viewCount').hidden = !listView;
   if (!listView) {
     $('nicheBar').hidden = true;
     $('nicheOpts').hidden = true;
-    if (ui.view === 'similar') renderSimilar();
+    if (ui.view === 'home') renderHome();
+    else if (ui.view === 'finder') renderFinder();
+    else if (ui.view === 'similar') renderSimilar();
     else if (ui.view === 'swipe') renderSwipe();
     else renderCtr();
     renderUpdate();
@@ -458,6 +486,37 @@ function render() {
   // Don't rebuild the drawer under someone typing in it (each keystroke saves and re-renders).
   const typing = $('drawer').contains(document.activeElement) && document.activeElement.tagName === 'TEXTAREA';
   if (ui.openId && !typing) renderDrawer();
+}
+
+/* ---------- Dashboard (home): the tools ---------- */
+
+function renderHome() {
+  const all = Object.values(db.channels);
+  const live = all.filter((c) => c.status !== 'gone');
+  const competitors = live.filter((c) => c.competitor);
+  const outliers = live.reduce((a, c) => a + M(c).outliers.length, 0);
+  const tool = (id, icon, title, text, stat) => h('button.home-tool', { onclick: () => setView(id) },
+    h('span.home-ico', icon),
+    h('div', h('b', title), h('p', text)),
+    stat ? h('span.home-stat', stat) : null);
+  const name = licenseInfo().name;
+  set($('list'), h('section.home',
+    h('div.home-hello',
+      h('h2', name ? `Welcome ${name}!` : 'Welcome!'),
+      h('p', 'Pick a tool to start. Everything you save stays in your own Chrome.')),
+    h('div.home-stats',
+      h('div.stat', h('div.k', 'Saved channels'), h('div.v', fmtNum(live.length)), h('div.s', `${db.niches.length} niche${db.niches.length === 1 ? '' : 's'}`)),
+      h('div.stat', h('div.k', 'Outlier videos'), h('div.v', fmtNum(outliers)), h('div.s', 'in your saved channels')),
+      h('div.stat', h('div.k', 'Competitors'), h('div.v', fmtNum(competitors.length)), h('div.s', 'checked every 30 min')),
+      h('div.stat', h('div.k', 'Saved videos'), h('div.v', fmtNum((db.swipe || []).length)), h('div.s', 'swipe file + niches'))),
+    h('div.side-label.home-label', h('span', 'Tools')),
+    h('div.home-tools',
+      tool('finder', '🧭', 'Niche Finder', 'Outlier channels, rising niches, trending keywords and viral videos on small channels — live from YouTube.'),
+      tool('all', '📚', 'My Library', 'Your saved channels and niches: growth, outliers, notes, RPM.', `${live.length} channels`),
+      tool('similar', '🔍', 'Similar channels', 'Find 20–40 channels like any channel, with similarity and stats.', Object.keys(db.similar || {}).length ? `${Object.keys(db.similar).length} searches` : ''),
+      tool('competitors', '⚔', 'Competitors', 'Exact upload times, schedule, next upload and first-24h views.', competitors.length ? `${competitors.length} tracked` : ''),
+      tool('thumbtest', '🎯', 'CTR Tester', 'Test thumbnails among real competitors, score them and get a fix list.'),
+      tool('swipe', '📌', 'Swipe file', 'Hooks, video parts and thumbnails you saved from YouTube.', (db.swipe || []).length ? `${db.swipe.length} items` : ''))));
 }
 
 /* ---------- videos saved into a niche ---------- */
@@ -1440,6 +1499,7 @@ function bind() {
   $('viewTable').onclick = () => { ui.layout = 'table'; saveUi(); render(); };
   $('addBtn').onclick = () => addModal();
   $('newNicheBtn').onclick = () => newNiche();
+  $('sideBack').onclick = () => setView('home');
   $('nicheOpts').onclick = (e) => {
     const n = nicheById(ui.view);
     const r = e.currentTarget.getBoundingClientRect();
@@ -1499,6 +1559,7 @@ async function loadDb() {
 await gate(send);
 await loadDb();
 initCtr({ h, set, send, toast, fmtNum, fmtDuration, fmtAge, getDb: () => db, $ });
+initFinder({ h, set, send, toast, fmtNum, fmtAge, getDb: () => db, $, openSimilar: (input) => openSimilar(input), rerender: () => render() });
 await initAi({ h, send, toast, fmtNum, fmtAge, fmtDuration, rerender: () => { render(); if (ui.view === 'thumbtest') renderCtr(true); }, openSettings: (section) => settingsModal(section) });
 bind();
 render();

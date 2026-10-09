@@ -18,29 +18,33 @@
       </div>
     </div>
 
+    <!-- Two levels, like a tool suite: the Dashboard lists the tools; inside a tool
+         the menu shows "Back to Dashboard" and only that tool's pages. -->
+    <button class="side-back" id="sideBack" hidden>← Back to Dashboard</button>
+    <div class="side-tool" id="sideTool" hidden></div>
     <nav class="nav" id="nav"></nav>
 
-    <div class="side-label"><span>Discover</span></div>
-    <nav class="nav" id="discover"></nav>
-
-    <div class="side-label"><span>Watch</span></div>
-    <nav class="nav" id="watch"></nav>
-
-    <div class="side-label">
-      <span>Niches</span>
-      <button class="icon-btn" id="newNicheBtn" title="New niche" aria-label="New niche">+</button>
+    <div id="nicheBlock">
+      <div class="side-label">
+        <span>Niches</span>
+        <button class="icon-btn" id="newNicheBtn" title="New niche" aria-label="New niche">+</button>
+      </div>
+      <input class="side-search" id="nicheSearch" placeholder="Find a niche…" autocomplete="off">
+      <nav class="nav niches" id="niches"></nav>
     </div>
-    <input class="side-search" id="nicheSearch" placeholder="Find a niche…" autocomplete="off">
-    <nav class="nav niches" id="niches"></nav>
 
     <div class="side-bottom">
-      <button class="side-action" id="exportCsv">⤓ Export CSV</button>
-      <button class="side-action" id="backupBtn">⤓ Backup</button>
-      <button class="side-action" id="importBtn">⤒ Import backup</button>
-      <label class="side-toggle"><input type="checkbox" id="autoRefresh"> Auto-refresh daily</label>
-      <label class="side-toggle"><input type="checkbox" id="notify"> Notify on competitor uploads</label>
-      <button class="side-action backup-info" id="backupInfo">Auto-backup</button>
-      <button class="side-action" id="settingsBtn">⚙ Settings</button>
+      <!-- Folded by default so the niche list gets the room. -->
+      <details class="side-tools" id="sideTools">
+        <summary class="side-action">⚙ Tools &amp; settings</summary>
+        <button class="side-action" id="settingsBtn">⚙ Settings</button>
+        <button class="side-action" id="exportCsv">⤓ Export CSV</button>
+        <button class="side-action" id="backupBtn">⤓ Backup</button>
+        <button class="side-action" id="importBtn">⤒ Import backup</button>
+        <label class="side-toggle"><input type="checkbox" id="autoRefresh"> Auto-refresh daily</label>
+        <label class="side-toggle"><input type="checkbox" id="notify"> Notify on competitor uploads</label>
+        <button class="side-action backup-info" id="backupInfo">Auto-backup</button>
+      </details>
       <button class="side-action version" id="versionBtn">Check for updates</button>
       <input type="file" id="importFile" accept="application/json,.json" hidden>
     </div>

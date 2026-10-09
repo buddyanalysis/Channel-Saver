@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Channel Saver",
-  "version": "1.7.1",
+  "version": "1.8.0",
   "description": "Save YouTube channels and videos into niches, find outliers and similar channels, track competitors and test thumbnails.",
   "permissions": [
     "storage",

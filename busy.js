@@ -22,6 +22,7 @@
     videoInfo: 'Loading video…',
     fetchImage: 'Loading images…',
     pollCompetitors: 'Checking new uploads…',
+    nicheScan: 'Starting niche scan…',
     backupNow: 'Backing up…',
     importData: 'Restoring…',
     checkUpdate: 'Checking for updates…',
@@ -127,10 +128,21 @@ body:has(.cs-panel) .csb-pill { bottom: 70px; }
       simEnd = null;
     }
   }
+  // Niche Finder scans run in the background too.
+  let finderEnd = null;
+  function watchFinder(f) {
+    const running = f?.status === 'running';
+    if (running && !finderEnd) finderEnd = start('Scanning niches…');
+    if (!running && finderEnd) {
+      finderEnd();
+      finderEnd = null;
+    }
+  }
   try {
-    chrome.storage.local.get('similar').then((r) => watchSimilar(r.similar)).catch(() => {});
+    chrome.storage.local.get(['similar', 'finder']).then((r) => { watchSimilar(r.similar); watchFinder(r.finder); }).catch(() => {});
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === 'local' && changes.similar) watchSimilar(changes.similar.newValue);
+      if (area === 'local' && changes.finder) watchFinder(changes.finder.newValue);
     });
   } catch {
     /* extension context gone (updated) */

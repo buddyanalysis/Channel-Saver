@@ -76,7 +76,20 @@ Key sirf aap ke computer mein rehti hai, backup mein nahi jaati.
 
 DASHBOARD (Chrome mein Channel Saver ke icon par click)
 -------------------------------------------------------
-- Saare saved channels: RPM, growth, outlier videos, score, notes. "Recently added" din ke
+- Dashboard khulte hi saare tools cards mein: Niche Finder, My Library, Similar channels,
+  Competitors, CTR Tester, Swipe file. Kisi tool mein jaayein to left mein
+  "← Back to Dashboard" aur sirf usi tool ke pages. Neeche "⚙ Tools & settings" click
+  karne par khulta hai (Backup, Export, Settings wagaira).
+- 🧭 NICHE FINDER: "Scan" dabayein — YouTube se seedha har category ki sab se zyada dekhi
+  gayi videos (24 ghante / 7 / 30 / 90 din) aur un ke channels check hote hain (1-2 minute):
+  · Recently added outlier channels — chhote channel jin ki video subscribers se kai guna chali
+  · Niches with high future competition — 2 saal se naye channel jo abhi se chal rahe hain
+  · Viral videos on small channels — thumbnails, views, VPH, outlier ×, "Random" button
+  · Trending keywords — viral titles mein baar baar aane wale alfaaz
+  · Most popular categories — "+ Add category" se apni category bhi
+  Har section ke upar 24h / 7 / 30 / 90 din ke tabs; "View all" se poora page.
+  Channel ke saath "+ Save" (My Library mein) aur 🔍 (similar channels).
+- 📚 My Library: saare saved channels: RPM, growth, outlier videos, score, notes. "Recently added" din ke
   hisaab se.
 - Bohat saare channels ek saath: "+ Add channels", har line mein ek link. Wahin naya niche
   bhi bana sakte hain.

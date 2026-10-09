@@ -7,6 +7,39 @@ import { load, mutate, uid } from './lib/store.js';
 import { UPDATE_URL, isNewer } from './lib/config.js';
 import { askJson, thumbnailReview, titleIdeas, nicheAnalysis, replyDraft } from './lib/ai.js';
 import { callLicense, normalizeKey, isExpired } from './lib/license.js';
+import { scanNiches, DEFAULT_CATEGORIES } from './lib/finder.js';
+
+/* ---------- Niche Finder ---------- */
+
+// One scan at a time; progress and results live in storage.local.finder for the dashboard.
+let finderRun = null;
+async function runFinder({ window = 'week', maxSubs = 50000, lang = 'any', categories: names = null }) {
+  if (finderRun) return { started: false, running: true };
+  const { settings = {}, finderSubs = {}, finder: prev = {} } = await chrome.storage.local.get(['settings', 'finderSubs', 'finder']);
+  const all = [...DEFAULT_CATEGORIES, ...(settings.finderCategories || [])];
+  // names = scan only these categories (a click on one category); default all.
+  const categories = names?.length ? all.filter((c) => names.includes(c.name)) : all;
+  const setState = (patch) => chrome.storage.local.set({ finder: { ...prev, ...patch } });
+  await setState({ status: 'running', stage: 'Starting', done: 0, total: categories.length + 1, error: '', options: { window, maxSubs, lang } });
+  finderRun = (async () => {
+    try {
+      const result = await scanNiches({
+        categories, window, maxSubs, lang, subsCache: finderSubs,
+        onProgress: (p) => setState({ status: 'running', stage: p.stage, done: p.done, total: p.total, options: { window, maxSubs, lang } }),
+      });
+      // Keep the channel cache small: drop entries older than a week.
+      for (const [id, c] of Object.entries(finderSubs)) if (Date.now() - c.at > 7 * 86400000) delete finderSubs[id];
+      // One result per time window, so switching a section's period is instant once scanned.
+      await chrome.storage.local.set({ finderSubs, finder: { status: 'done', results: { ...(prev.results || {}), [window]: result }, options: { window, maxSubs, lang }, error: '' } });
+    } catch (e) {
+      await setState({ status: 'error', error: e.message });
+    } finally {
+      finderRun = null;
+    }
+  })();
+  return { started: true };
+}
+
 
 /* ---------- activation key (checked by letrestart.com) ---------- */
 
@@ -269,6 +302,7 @@ const HANDLERS = {
   pollCompetitors: () => pollCompetitors({ force: true }),
   backupNow: () => autoBackup({ force: true }),
   findSimilar: runSimilar,
+  nicheScan: runFinder,
   forgetSimilar: async ({ seedId }) => {
     const { similar = {} } = await chrome.storage.local.get('similar');
     delete similar[seedId];
