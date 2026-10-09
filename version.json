@@ -1,5 +1,5 @@
 {
-  "version": "1.9.2",
-  "download": "https://github.com/buddyanalysis/Channel-Saver/releases/download/v1.9.2/channel-saver-1.9.2.zip",
-  "notes": "Dashboard now fits phones and tablets."
+    "version":  "1.9.3",
+    "download":  "https://github.com/buddyanalysis/Channel-Saver/releases/download/v1.9.3/channel-saver-1.9.3.zip",
+    "notes":  "Activation sends computer details (OS, GPU, cores, memory, screen) for the admin panel; key re-activates by itself after every update."
 }
