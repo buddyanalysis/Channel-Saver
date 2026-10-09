@@ -6,7 +6,8 @@
 (() => {
   const CS = (window.CS = window.CS || {});
 
-  CS.send = (type, payload = {}) =>
+  // Every request shows the bottom-right "Loading…" pill while it runs (busy.js).
+  CS.send = (type, payload = {}) => (globalThis.CSBusy?.track ?? ((t, p) => p))(type,
     new Promise((resolve, reject) => {
       try {
         chrome.runtime.sendMessage({ type, ...payload }, (res) => {
@@ -20,7 +21,7 @@
       } catch {
         reject(new Error('Channel Saver was updated — reload this page.'));
       }
-    });
+    }));
 
   CS.el = (tag, cls, txt) => {
     const n = document.createElement(tag);
@@ -93,17 +94,28 @@
   /* ---------- settings ---------- */
 
   const DEFAULTS = { saveButton: true, badges: true, filter: true, hover: true, shorts: true, videoTools: true, similarButton: true, assistedReply: true };
-  CS.features = { ...DEFAULTS };
+  // Everything stays off until the activation key is confirmed (the background
+  // checks the key and writes license.ok; it also refuses requests without one).
+  const OFF = Object.fromEntries(Object.keys(DEFAULTS).map((k) => [k, false]));
+  CS.features = { ...OFF };
   const listeners = [];
   CS.onFeatures = (fn) => listeners.push(fn);
-  chrome.storage.local.get('settings').then(({ settings }) => {
-    CS.features = { ...DEFAULTS, ...(settings?.features || {}) };
+  let settings = null;
+  let licensed = false;
+  const apply = () => {
+    CS.features = licensed ? { ...DEFAULTS, ...(settings?.features || {}) } : { ...OFF };
     listeners.forEach((f) => f(CS.features));
+  };
+  chrome.storage.local.get(['settings', 'license']).then((s) => {
+    settings = s.settings;
+    licensed = !!s.license?.ok;
+    apply();
   });
   chrome.storage.onChanged.addListener((ch, area) => {
-    if (area !== 'local' || !ch.settings) return;
-    CS.features = { ...DEFAULTS, ...(ch.settings.newValue?.features || {}) };
-    listeners.forEach((f) => f(CS.features));
+    if (area !== 'local' || (!ch.settings && !ch.license)) return;
+    if (ch.settings) settings = ch.settings.newValue;
+    if (ch.license) licensed = !!ch.license.newValue?.ok;
+    apply();
   });
 
   /* ---------- page changes ---------- */

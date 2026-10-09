@@ -116,3 +116,16 @@ html[dark] .cs-empty.cs-err { color: #fca5a5; }
 .cs-mode { display: flex; gap: 4px; margin-bottom: 10px; }
 .cs-mode button { flex: 1; padding: 6px 8px; border: 1px solid rgba(128,128,128,.3); border-radius: 8px; background: none; color: inherit; font: 500 12.5px Roboto, Arial, sans-serif; cursor: pointer; }
 .cs-mode button.on { background: #7c3aed; color: #fff; border-color: transparent; }
+
+/* Save menu: search on top, Create button next to "New niche" */
+.cs-menu > .cs-search { margin: 12px 12px 4px; width: calc(100% - 24px); box-sizing: border-box; }
+.cs-new-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.cs-new-head .cs-label { margin: 0 2px; }
+.cs-create {
+  border: 0; border-radius: 16px; padding: 5px 12px; cursor: pointer;
+  background: #7c3aed; color: #fff; font: 600 12px Roboto, Arial, sans-serif;
+}
+.cs-create:hover { background: #6d28d9; }
+.cs-create:disabled { opacity: .5; cursor: default; }
+.cs-add-row { color: #7c3aed; font-weight: 600; }
+html[dark] .cs-add-row { color: #c4b5fd; }

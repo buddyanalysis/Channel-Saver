@@ -11,7 +11,7 @@
   let menu = null;
   let busy = false;
 
-  const send = (type, payload = {}) =>
+  const send = (type, payload = {}) => (globalThis.CSBusy?.track ?? ((t, p) => p))(type,
     new Promise((resolve, reject) => {
       try {
         chrome.runtime.sendMessage({ type, ...payload }, (res) => {
@@ -26,7 +26,7 @@
       } catch {
         reject(new Error('Extension was updated — reload this page.'));
       }
-    });
+    }));
 
   const visible = (el) => el && el.offsetParent !== null && el.getBoundingClientRect().width > 0;
 
@@ -258,19 +258,30 @@
       e.preventDefault();
       const matches = filtered();
       if (matches.length === 1) toggleNiche(matches[0].id);
+      else if (!matches.length && search.value.trim()) {
+        parts.input.value = search.value.trim();
+        search.value = '';
+        parts.input.form.requestSubmit();
+      }
     });
     const list = el('div', 'cs-list');
 
     const form = el('form', 'cs-new');
-    const label = el('div', 'cs-label', 'New niche');
+    const labelRow = el('div', 'cs-new-head');
+    const create = el('button', 'cs-create', '＋ Create & save');
+    create.type = 'submit';
+    labelRow.append(el('div', 'cs-label', 'New niche'), create);
     const input = el('input');
-    input.placeholder = 'Write niche name and press Enter';
+    input.placeholder = 'Write a niche name…';
     input.maxLength = 80;
-    form.append(label, input);
+    form.append(labelRow, input);
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       const title = input.value.trim();
-      if (!title) return;
+      if (!title) {
+        input.focus();
+        return;
+      }
       run(async () => {
         const { niche } = await send('createNiche', { title });
         if (mode === 'video') {
@@ -287,7 +298,8 @@
       });
     });
     const busyLine = el('div', 'cs-busy', 'Saving…');
-    menu.append(head, search, list, form, busyLine);
+    // Search first, so a long niche list is one keystroke away.
+    menu.append(search, head, list, form, busyLine);
     parts = { head, search, list, input, busyLine };
   }
 
@@ -331,7 +343,7 @@
       );
     }
     head.replaceChildren(...kids);
-    search.hidden = niches.length < 6; // Only worth it once the list gets long.
+    search.hidden = !niches.length;
 
     const rows = filtered();
     list.replaceChildren();
@@ -357,10 +369,23 @@
         : lookupError), fix);
       list.append(box);
     } else if (!niches.length) list.append(el('div', 'cs-empty', 'No niches yet — write the first one below.'));
-    else if (!rows.length) list.append(el('div', 'cs-empty', 'No niche with that name.'));
+    else if (!rows.length) {
+      // Not there yet: offer to create it straight from the search box.
+      const q = search.value.trim();
+      const add = el('button', 'cs-row cs-add-row', `＋ Create niche “${q}” and save`);
+      add.type = 'button';
+      add.disabled = busy;
+      add.addEventListener('click', () => {
+        input.value = q;
+        search.value = '';
+        input.form.requestSubmit();
+      });
+      list.append(add);
+    }
 
     search.disabled = busy || !!lookupError;
     input.disabled = busy || !!lookupError;
+    input.form.querySelector('.cs-create').disabled = busy || !!lookupError;
     busyLine.hidden = !busy;
   }
 

@@ -5,6 +5,79 @@ import { computeMetrics } from './lib/metrics.js';
 import { findSimilar } from './lib/discover.js';
 import { load, mutate, uid } from './lib/store.js';
 import { UPDATE_URL, isNewer } from './lib/config.js';
+import { askJson, thumbnailReview, titleIdeas, nicheAnalysis, replyDraft } from './lib/ai.js';
+import { callLicense, normalizeKey, isExpired } from './lib/license.js';
+
+/* ---------- activation key (checked by letrestart.com) ---------- */
+
+// What works before activation: the activation screen itself, updates and backups.
+const OPEN_REQUESTS = new Set(['activate', 'deactivate', 'licenseStatus', 'checkUpdate', 'restart', 'openDashboard', 'backupNow']);
+const LOCKED = 'Channel Saver is not activated. Open the Channel Saver dashboard and enter your activation key.';
+const LIC_HOUR = 3600000; // (HOUR is declared further down)
+const CHECK_EVERY = 6 * LIC_HOUR;
+// If letrestart.com can't be reached, keep working this long after the last good check.
+const OFFLINE_GRACE = 7 * 24 * LIC_HOUR;
+
+/** This computer's id: made once, kept for good (sent with every key request). */
+async function deviceId() {
+  const { deviceId: id } = await chrome.storage.local.get(['deviceId']);
+  if (id) return id;
+  const fresh = crypto.randomUUID();
+  await chrome.storage.local.set({ deviceId: fresh });
+  return fresh;
+}
+
+const publicInfo = (l) => ({ ok: !!l?.ok, name: l?.name || '', activatedAt: l?.activatedAt || 0, expiresAt: l?.expiresAt || 0, lifetime: !!l?.lifetime, checkedAt: l?.checkedAt || 0, error: l?.error || '', key: l?.key ? `${l.key.slice(0, 7)}…${l.key.slice(-4)}` : '' });
+
+/**
+ * The current verdict. Uses the saved answer, re-asks letrestart.com every
+ * few hours (or when force), and locks on ok:false or when the key runs out.
+ */
+let checking = null;
+async function license({ force = false } = {}) {
+  const { license: lic } = await chrome.storage.local.get(['license']);
+  if (!lic?.key) return { ok: false, error: 'Not activated yet.' };
+  if (lic.ok && isExpired(lic)) {
+    const next = { ...lic, ok: false, error: 'This activation key has expired. Ask your admin for a new key.' };
+    await chrome.storage.local.set({ license: next });
+    return next;
+  }
+  const due = force || !lic.checkedAt || Date.now() - lic.checkedAt > CHECK_EVERY;
+  if (!due || (!lic.ok && !force)) return lic;
+  checking ||= (async () => {
+    try {
+      const res = await callLicense('check', lic.key, await deviceId());
+      const next = res.ok
+        ? { key: lic.key, ...res, ok: true, error: '', checkedAt: Date.now(), lastGood: Date.now() }
+        : { ...lic, ok: false, error: res.error, checkedAt: Date.now() };
+      await chrome.storage.local.set({ license: next });
+      return next;
+    } catch (e) {
+      // Offline or server trouble: not a verdict on the key. Keep going within the grace period.
+      const tooLong = Date.now() - (lic.lastGood || lic.checkedAt || 0) > OFFLINE_GRACE;
+      const next = tooLong
+        ? { ...lic, ok: false, error: 'Channel Saver could not confirm your key with letrestart.com for 7 days. Connect to the internet and open the dashboard.' }
+        : { ...lic, checkedAt: Date.now() - CHECK_EVERY + LIC_HOUR }; // try again in an hour
+      await chrome.storage.local.set({ license: next });
+      return next;
+    } finally {
+      checking = null;
+    }
+  })();
+  return checking;
+}
+
+
+/* ---------- optional AI (user's own key in storage.local.ai) ---------- */
+
+const AI_TASKS = { thumbnail: thumbnailReview, titles: titleIdeas, niche: nicheAnalysis, reply: replyDraft };
+
+async function runAi({ task, input }) {
+  const fn = AI_TASKS[task];
+  if (!fn) throw new Error(`Unknown AI task: ${task}`);
+  const { ai } = await chrome.storage.local.get(['ai']);
+  return fn(ai, input || {});
+}
 
 /**
  * The only writer of the library. The dashboard and the YouTube button send
@@ -291,6 +364,31 @@ const HANDLERS = {
 
   checkUpdate: () => checkUpdate(),
 
+  activate: async ({ key }) => {
+    const k = normalizeKey(key);
+    if (!k) throw new Error('That doesn’t look like an activation key. It looks like LR-XXXX-XXXX-XXXX-XXXX.');
+    const device = await deviceId();
+    let res = await callLicense('activate', k, device);
+    // Re-entering a key already activated on this same computer: confirm it with a check.
+    if (!res.ok && /already/i.test(res.error) && !/another device/i.test(res.error)) res = await callLicense('check', k, device);
+    if (!res.ok) throw new Error(res.error);
+    const lic = { key: k, ...res, ok: true, error: '', checkedAt: Date.now(), lastGood: Date.now() };
+    await chrome.storage.local.set({ license: lic });
+    return publicInfo(lic);
+  },
+  deactivate: async () => {
+    await chrome.storage.local.remove('license');
+    return { ok: false };
+  },
+  // The dashboard asks on open: re-check with the website if the last check is over an hour old.
+  licenseStatus: async () => {
+    const { license: lic } = await chrome.storage.local.get(['license']);
+    return publicInfo(await license({ force: !!lic?.key && Date.now() - (lic.checkedAt || 0) > LIC_HOUR }));
+  },
+
+  ai: runAi,
+  aiTest: ({ cfg }) => askJson(cfg, { system: 'You answer with JSON.', prompt: 'Return {"ok": true}', maxTokens: 50 }),
+
   /* ---- on-page tools ---- */
   channelLite: ({ paths }) => getLiteMany(paths || []),
   channelPopular: async ({ path }) => {
@@ -419,7 +517,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return false;
   }
   Promise.resolve()
-    .then(() => fn(msg))
+    .then(async () => {
+      if (!OPEN_REQUESTS.has(msg.type) && !(await license()).ok) throw new Error(LOCKED);
+      return fn(msg);
+    })
     .then((data) => sendResponse({ data }))
     .catch((err) => sendResponse({ error: String(err?.message || err) }));
   return true;
@@ -661,8 +762,10 @@ async function checkUpdate() {
 async function tick() {
   const st = await load();
   if (UPDATE_URL && Date.now() - (st.settings.updateCheckedAt || 0) > 12 * HOUR) await checkUpdate().catch(() => {});
-  await pollCompetitors().catch(() => {});
+  // Backups keep running even while locked, so nobody's data is ever at risk.
   await autoBackup().catch(() => {});
+  if (!(await license()).ok) return;
+  await pollCompetitors().catch(() => {});
   if (!st.settings.autoRefresh) return;
   const age = (c) => Date.now() - (c.fetchedAt || 0);
   const stale = Object.values(st.channels)

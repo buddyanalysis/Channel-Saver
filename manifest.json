@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Channel Saver",
-  "version": "1.6.0",
-  "description": "Save YouTube channels into niches and see their growth, outlier videos and estimated earnings.",
+  "version": "1.7.0",
+  "description": "Save YouTube channels and videos into niches, find outliers and similar channels, track competitors and test thumbnails.",
   "permissions": [
     "storage",
     "unlimitedStorage",
@@ -30,6 +30,7 @@
       ],
       "js": [
         "content-core.js",
+        "busy.js",
         "content-similar.js",
         "content.js",
         "content-share.js",
@@ -51,6 +52,7 @@
       ],
       "js": [
         "content-core.js",
+        "busy.js",
         "content-reply.js"
       ],
       "css": [
@@ -64,7 +66,10 @@
     "default_title": "Open Channel Saver",
     "default_icon": {
       "16": "icons/icon16.png",
+      "20": "icons/icon20.png",
+      "24": "icons/icon24.png",
       "32": "icons/icon32.png",
+      "40": "icons/icon40.png",
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     }

@@ -4,6 +4,8 @@ import {
 
 import { schedule, uploadStats, fmtWhen, fmtHour, WEEKDAYS } from './lib/track.js';
 import { initCtr, renderCtr } from './ctr.js';
+import { initAi, aiSettingsSection, aiChannelSection, aiNicheSection } from './ai-ui.js';
+import { gate, licenseInfo } from './activation.js';
 
 const VERSION = chrome.runtime.getManifest().version;
 
@@ -14,7 +16,7 @@ const VERSION = chrome.runtime.getManifest().version;
  * reloaded, so after copying new files the two can disagree — then saving
  * silently breaks. When they differ, ask for a one-click restart.
  */
-const BUILD = '1.6.0';
+const BUILD = '1.7.0';
 
 function showRestart(reason) {
   if (document.getElementById('restartBanner')) return;
@@ -85,7 +87,8 @@ function h(sel, attrs, ...kids) {
   return n;
 }
 
-const send = (type, payload = {}) =>
+// Every request shows the bottom-right "Loading…" pill while it runs (busy.js).
+const send = (type, payload = {}) => (globalThis.CSBusy?.track ?? ((t, p) => p))(type,
   new Promise((resolve, reject) => {
     chrome.runtime.sendMessage({ type, ...payload }, (res) => {
       if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
@@ -96,7 +99,7 @@ const send = (type, payload = {}) =>
       }
       resolve(res?.data);
     });
-  });
+  }));
 
 let toastTimer;
 function toast(msg, bad = false) {
@@ -264,22 +267,9 @@ function renderNicheBar(list) {
     bar.hidden = true;
     return;
   }
-  const ms = list.map(M);
-  const sum = (f) => ms.reduce((s, m) => s + (f(m) || 0), 0);
-  const med = (arr) => {
-    const a = arr.filter(Number.isFinite).sort((x, y) => x - y);
-    return a.length ? a[Math.floor(a.length / 2)] : null;
-  };
-  const young = ms.filter((m) => m.ageDays != null && m.ageDays < 365).length;
-  bar.hidden = false;
-  set(bar, 
-    stat('Avg opportunity', Math.round(sum((m) => m.score) / ms.length), 'out of 100'),
-    stat('Median subscribers', fmtNum(med(list.map((c) => c.subs))), `${list.length} channels`),
-    stat('Median views / video', fmtNum(med(ms.map((m) => m.medianViews))), 'recent uploads'),
-    stat('Under 1 year old', `${young}`, young ? 'new channels growing here' : 'no young channels'),
-    stat('Outlier videos', `${sum((m) => m.outliers.length)}`, `${OUTLIER_X}x+ the channel's median`),
-    niche?.notes ? h('div.niche-notes', niche.notes) : null,
-  );
+  // The summary numbers strip was removed on request; only the niche's notes stay.
+  bar.hidden = !niche?.notes;
+  set(bar, niche?.notes ? h('div.niche-notes', niche.notes) : null);
 }
 
 function stat(k, v, s) {
@@ -326,7 +316,6 @@ function videoTile(v, m) {
 
 function card(ch) {
   const m = M(ch);
-  const g = growthText(m);
   const busy = refreshing.has(ch.channelId);
   const watch = ui.view === 'competitors';
   const focused = watch && ui.compFocus === ch.channelId;
@@ -351,13 +340,8 @@ function card(ch) {
       h('h3', h('span.t', ch.title || ch.handle)),
       h('div.meta', `${ch.handle || ''} · ${fmtNum(ch.subs)} subs · ${fmtNum(ch.videoCount)} videos`)),
     h('div.chips', channelChips(ch, m)),
-    watch ? competitorMetrics(ch, m) : h('div.metrics',
-      h('div.metric', { title: 'Set RPM from the niche ⋯ menu → RPM & notes' }, h('div.k', 'RPM'), h('div.v' + (rpmFor(ch) ? '' : '.muted'), rpmText(ch))),
-      metric('Views / month', fmtNum(m.monthlyViews)),
-      metric('Subs growth', g.v, g.cls),
-      metric('Uploads / week', m.uploadsPerWeek != null ? m.uploadsPerWeek.toFixed(1) : '—'),
-      metric('Channel age', fmtChannelAge(m.ageDays)),
-      metric('Outliers', `${m.outliers.length}`)),
+    // Compact card: the numbers live in the drawer (click the card); competitors keep their upload info.
+    watch ? competitorMetrics(ch, m) : null,
     watch && m.latest.length ? h('div.vids-label', 'Latest uploads') : null,
     h('div.vids', (watch ? m.latest : m.outliers.length ? [...m.outliers, ...m.top.filter((v) => !m.outliers.includes(v))] : m.top).slice(0, 3).map((v) => videoTile(v, m))),
     ch.notes ? h('div.card-notes', ch.notes) : null,
@@ -464,6 +448,7 @@ function render() {
   } else {
     set(box,
       niche ? nicheVideos(niche) : null,
+      niche ? aiNicheSection(niche, list, M) : null,
       ui.view === 'competitors' ? competitorFeed(list) : null,
       ui.layout === 'table' ? table(list) : ui.sort === 'added' ? dayGroups(list) : h('div.grid', list.map(card)));
   }
@@ -623,7 +608,9 @@ const FEATURE_LABELS = [
   ['assistedReply', '💬 Assisted reply on comments (YouTube Studio and video pages)'],
 ];
 
-function settingsModal() {
+async function settingsModal(focus) {
+  const { ai } = await chrome.storage.local.get('ai').catch(() => ({}));
+  const aiSec = aiSettingsSection(ai);
   const feats = { saveButton: true, badges: true, filter: true, hover: true, shorts: true, videoTools: true, similarButton: true, assistedReply: true, ...(db.settings.features || {}) };
   const boxes = FEATURE_LABELS.map(([k, label]) => {
     const cb = h('input', { type: 'checkbox' });
@@ -642,15 +629,33 @@ function settingsModal() {
     h('div.set-group', h('div.set-h', 'Background'),
       h('label.set-row', auto, h('span', 'Refresh saved channels daily (growth tracking)')),
       h('label.set-row', notify, h('span', 'Notify me when a competitor uploads'))),
+    aiSec.el,
+    h('div.set-group', h('div.set-h', '🔑 Activation'),
+      (() => {
+        const l = licenseInfo();
+        const day = (t) => (t ? new Date(t).toLocaleDateString() : '');
+        return h('p.vm', l.ok
+          ? `Activated${l.name ? ` for ${l.name}` : ''}${l.activatedAt ? ` on ${day(l.activatedAt)}` : ''} · ${l.lifetime ? 'lifetime key' : `valid until ${day(l.expiresAt)}`} · key ${l.key}`
+          : 'Not activated');
+      })(),
+      h('button.btn.small', { type: 'button', onclick: async () => {
+        if (!confirm('Remove the activation key from this computer? Channel Saver locks until a key is entered again. Your saved data stays.\n\nNote: the key stays tied to this computer on letrestart.com — to use it on another computer, ask your admin to reset it.')) return;
+        await send('deactivate');
+        location.reload();
+      } }, 'Remove key from this computer')),
     h('div.actions',
       h('button.btn', { onclick: closeModal }, 'Cancel'),
       h('button.btn.primary', { onclick: async () => {
         const features = Object.fromEntries(boxes.map((b) => { const cb = b.querySelector('input'); return [cb.dataset.k, cb.checked]; }));
         await send('saveSettings', { patch: { features, autoRefresh: auto.checked, notify: notify.checked } });
+        const a = aiSec.read();
+        if (a.key) await chrome.storage.local.set({ ai: a });
+        else await chrome.storage.local.remove('ai');
         closeModal();
         toast('Settings saved');
       } }, 'Save')),
   );
+  if (focus === 'ai') aiSec.el.scrollIntoView({ block: 'start' });
 }
 
 /* ---------- swipe file ---------- */
@@ -1103,6 +1108,8 @@ function renderDrawer() {
 
       ch.competitor ? trackingSection(ch) : null,
 
+      aiChannelSection(ch, m),
+
       h('div.section', h('h4', 'Views & RPM'),
         h('div.kv',
           stat('RPM', rpmText(ch), rpmFor(ch) ? 'set on the niche' : 'set it from the niche ⋯ menu'),
@@ -1440,7 +1447,7 @@ function bind() {
   $('copyLinks').onclick = () => copyLinks(visibleChannels());
   $('exportCsv').onclick = exportCsv;
   $('versionBtn').onclick = checkUpdates;
-  $('settingsBtn').onclick = settingsModal;
+  $('settingsBtn').onclick = () => settingsModal();
   $('backupInfo').onclick = async () => {
     try {
       const r = await send('backupNow');
@@ -1472,6 +1479,10 @@ function bind() {
 function fromHash() {
   const id = /#ch=([\w-]+)/.exec(location.hash)?.[1];
   if (id && db.channels[id]) openDrawer(id);
+  if (location.hash === '#settings-ai') {
+    history.replaceState(null, '', location.pathname);
+    settingsModal('ai');
+  }
   const sim = /#similar=(.+)$/.exec(location.hash)?.[1];
   if (sim) {
     history.replaceState(null, '', location.pathname);
@@ -1484,8 +1495,10 @@ async function loadDb() {
   db = { niches: s.niches || [], channels: s.channels || {}, settings: s.settings || {}, similar: s.similar || {}, swipe: s.swipe || [] };
 }
 
+await gate(send);
 await loadDb();
 initCtr({ h, set, send, toast, fmtNum, fmtDuration, fmtAge, getDb: () => db, $ });
+await initAi({ h, send, toast, fmtNum, fmtAge, fmtDuration, rerender: () => { render(); if (ui.view === 'thumbtest') renderCtr(true); }, openSettings: (section) => settingsModal(section) });
 bind();
 render();
 fromHash();

@@ -287,8 +287,28 @@
       writeBtn.addEventListener('click', write);
       const skipBtn = el('button', 'cs-btn-s', 'Skip ⏭');
       skipBtn.addEventListener('click', skip);
+      // AI draft: fills the box only — the creator still reads it and presses Reply.
+      const aiBtn = el('button', 'cs-btn-s', '✨ AI draft');
+      aiBtn.title = 'Let AI write a reply to this comment (needs your AI key). You still check it and post it yourself.';
+      aiBtn.addEventListener('click', async () => {
+        const forThread = current;
+        aiBtn.disabled = true;
+        aiBtn.textContent = '✨ Writing…';
+        try {
+          const videoTitle = (STUDIO ? '' : document.querySelector('ytd-watch-metadata h1')?.textContent || document.title.replace(/ - YouTube$/, '')).trim();
+          const d = await CS.send('ai', { task: 'reply', input: { comment: text, author, videoTitle, tone: 'friendly' } });
+          if (forThread !== current) return;
+          if (d.reply) reply.value = d.reply;
+          setStatus(d.reply ? '✨ AI draft ready — edit it if you like, then press “Write reply”.' : 'AI suggests not replying to this one (spam or abuse).', !d.reply);
+        } catch (e) {
+          setStatus(/Settings/.test(e.message) ? `${e.message} (open the Channel Saver dashboard)` : e.message, true);
+        } finally {
+          aiBtn.disabled = false;
+          aiBtn.textContent = '✨ AI draft';
+        }
+      });
       const btns = el('div', 'cs-row-actions');
-      btns.append(writeBtn, shuffle, skipBtn);
+      btns.append(writeBtn, aiBtn, shuffle, skipBtn);
       card.append(el('div', 'cs-ar-author', author || 'Comment'), el('div', 'cs-ar-text', text), el('div', 'cs-label', 'Your reply (edit if you like)'), reply, btns);
     } else {
       card.append(el('div', 'cs-ar-text', queue.length ? '' : 'No more loaded comments to reply to. Scroll down to load more, then press “Find comments”.'));

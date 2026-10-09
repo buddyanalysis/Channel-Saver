@@ -20,6 +20,16 @@ STEP 2: Chrome mein lagayein
 4. Documents > channel-saver folder chunein aur "Select Folder" dabayein.
 5. Upar puzzle icon par click karein, phir "Channel Saver" ke saath pin dabayein.
 
+
+STEP 3: Activate karein
+-----------------------
+1. Toolbar mein Channel Saver ke icon par click karein — dashboard khulega.
+2. "Activate Channel Saver" ke khane mein woh key likhein jo aap ko admin ne di hai
+   (jaise LR-XXXX-XXXX-XXXX-XXXX), phir "Activate" dabayein. Internet on hona chahiye.
+3. Ek key sirf ek computer par chalti hai. Key ki muddat activate karne ke din se shuru hoti hai.
+4. Key ke baghair extension kaam nahi karti. Key na ho, expire ho jaye, ya computer badla ho
+   to admin se baat karein.
+
 Ho gaya!
 
 
@@ -29,7 +39,8 @@ YOUTUBE PAR KYA MILEGA
   · Video page par yeh VIDEO ko niche mein save karta hai (menu mein upar "Video | Channel"
     switch se channel bhi save kar sakte hain).
   · Channel page par CHANNEL save karta hai.
-  Niche dhoondhein, ya neeche "New niche" mein naam likh kar Enter dabayein — wahin save.
+  Menu mein sab se upar search box hai: niche ka naam likhein. Naya naam ho to wahin
+  "Create niche … and save" aa jata hai, ya neeche "New niche" mein likh kar "＋ Create & save".
 - Channel page par "🔍 Similar": wahin YouTube par side panel khulta hai ("Looking for you…")
   aur kam az kam 20 milte-julte channels dikhata hai (In-depth = 40), "+ Save" ke saath.
 - Har video ke neeche badge: channel ke subscribers, outlier score (jaise 3.2x = channel ke
@@ -46,6 +57,21 @@ YOUTUBE PAR KYA MILEGA
   aap ke templates se naam ke saath reply likh deta hai. Reply AAP khud dabate hain — extension
   kabhi khud post nahi karti.
 - Har video ke badge mein 📸: us video ka Share card.
+- Jab extension kuch dhoondh raha ho ya kaam kar raha ho, neeche daayein kone mein
+  purple "Loading…" dikhta hai.
+
+
+AI (OPTIONAL — apni key se)
+---------------------------
+Dashboard → ⚙ Settings → "AI (optional)" mein apni AI key daalein (Google Gemini ki key
+free milti hai: aistudio.google.com/apikey). Phir:
+- CTR Tester → "🚀 Improve CTR" → "✨ Review with AI": thumbnail ko dekh kar chehra, text,
+  emotion, behtar titles aur 3-5 fixes.
+- Video page par "✨ Title ideas": us topic par apni video ke liye 8 title ideas.
+- Channel ki details aur niche page par "✨ Analyse with AI": format, kya chal raha hai,
+  content gaps aur 10 video ideas.
+- Assisted reply mein "✨ AI draft": comment ke hisaab se reply ka draft (post aap khud karte hain).
+Key sirf aap ke computer mein rehti hai, backup mein nahi jaati.
 
 
 DASHBOARD (Chrome mein Channel Saver ke icon par click)
@@ -58,18 +84,20 @@ DASHBOARD (Chrome mein Channel Saver ke icon par click)
   Competitors har 30 minute check hote hain (jab Chrome khula ho): har video ka exact upload
   time, kis din aur kis waqt upload karte hain, agli video kab aayegi, pehle 24 ghante ke
   views, title changes. Nayi upload par notification aati hai.
-- 🔍 Similar channels: kisi bhi channel ka link daalein. "⚡ Quick search" (~10 channels, jaldi)
-  ya "🔬 In-depth search" (~25 channels, naye competitors bhi). Similarity %, avg views, kitne din
+- 🔍 Similar channels: kisi bhi channel ka link daalein. "⚡ Quick search" (~20 channels, jaldi)
+  ya "🔬 In-depth search" (~40 channels, naye competitors bhi). Similarity %, avg views, kitne din
   purana, monthly uploads, last upload; kisi bhi column se sort karein. "+ Save" se seedha save.
 - 📌 Swipe file: YouTube se save ki hui videos, video ke hisse (hook waghaira) aur thumbnails,
   notes aur tags ke saath.
 - 🎯 CTR Tester: 3 thumbnails (A/B/C) aur titles. Preview (Home, Mobile, Search, Sidebar,
   Large, Dark, Squint, Grayscale), Score (contrast, rang, saaf, chhote size par, competitors se
-  alag, time-badge corner), aur Click test (pick rate %). "▶ Test inside YouTube" bhi.
+  alag, time-badge corner), "🚀 Improve CTR" (us thumbnail ke liye fix list, rang ka mashwara,
+  title tips, Auto-boost aur "📋 Copy instructions" — ek click mein saari hidayaat copy),
+  aur Click test (pick rate %). "▶ Test inside YouTube" bhi.
 - Niche kholne par us mein save ki hui videos ("🎬 Saved videos") bhi nazar aati hain.
 - ⚔ Competitors: kisi competitor par click karein to upar sirf usi ki uploads; ⓘ = details.
 - ⚙ Settings: jo feature nahi chahiye use band kar dein.
-- Dark/Light mode: upar ◐ button.
+- Dark/Light mode: upar ☾ / ☀ button — ek click mein badal jata hai.
 
 
 AUTO-BACKUP (aap ka data mehfooz)
@@ -88,8 +116,6 @@ AGAR MASLA HO
 - Save button nazar nahi aa raha: YouTube page refresh karein (F5).
 - "Channel Saver was updated": YouTube page refresh karein.
 - Channel ka data purana hai: card par ⟳ dabayein. Waise bhi rozana khud refresh hota hai.
-- Transcript nahi aaya: YouTube kabhi kabhi transcript nahi bhejta; thodi der baad dobara try
-  karein.
 - Naya version aaya: dashboard mein upar "Update available" likha aayega.
   "Download" dabayein, ZIP ko usi channel-saver folder par extract karein (files replace karein),
   phir "Restart" dabayein. Aap ka saara data save rehta hai.

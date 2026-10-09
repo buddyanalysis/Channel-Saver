@@ -71,7 +71,10 @@
   function ensureBar() {
     if (bar) return;
     bar = el('div', 'cs-tt-bar');
-    const label = el('span', null, '🖼 Testing your thumbnail on this page');
+    // It's a still preview, not a running job — say so, and how long it stays.
+    const label = el('span', null, '👁 Preview only: your thumbnail is placed in this feed (nothing is loading)');
+    const left = el('span', 'cs-tt-left', '');
+    label.append(left);
     const move = el('button', null, '⟳ Move it');
     move.addEventListener('click', () => {
       chrome.storage.local.set({ thumbTest: { ...test, position: 'random', seed: Math.random() } });
@@ -87,10 +90,23 @@
     const stop = el('button', 'stop', '✕ Stop test');
     stop.addEventListener('click', () => chrome.storage.local.set({ thumbTest: { ...test, active: false } }));
     bar.append(label, move, first, mark, stop);
+    bar.left = left;
     document.body.appendChild(bar);
   }
 
+  // The preview switches itself off after 15 minutes (older previews without a start time end right away).
+  const LIFETIME = 15 * 60000;
+  const expired = () => test?.active && (!test.startedAt || Date.now() - test.startedAt > LIFETIME);
+  setInterval(() => {
+    if (expired()) chrome.storage.local.set({ thumbTest: { ...test, active: false } });
+    else if (bar?.left && test?.startedAt) bar.left.textContent = ` · turns off in ${Math.max(1, Math.ceil((LIFETIME - (Date.now() - test.startedAt)) / 60000))} min`;
+  }, 5000);
+
   CS.onTick(() => {
+    if (expired()) {
+      chrome.storage.local.set({ thumbTest: { ...test, active: false } });
+      return;
+    }
     const on = test?.active && test.image && PAGES.includes(CS.page());
     if (!on) {
       restore();

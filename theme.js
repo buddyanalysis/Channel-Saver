@@ -1,9 +1,9 @@
 // Loaded in <head> before the stylesheet paints, so a saved theme never flashes.
-// Modes: 'auto' follows Windows/Chrome, 'light' and 'dark' force it.
+// Until the button is used the page follows Windows/Chrome ('auto'); one click
+// always switches to the opposite of what is on screen (light ⇄ dark).
 (() => {
   const MODES = ['auto', 'light', 'dark'];
-  const ICON = { auto: '◐', light: '☀', dark: '☾' };
-  const LABEL = { auto: 'Theme: Auto (follows your computer)', light: 'Theme: Light', dark: 'Theme: Dark' };
+  const systemDark = () => window.matchMedia?.('(prefers-color-scheme: dark)').matches;
 
   const read = () => {
     try {
@@ -13,15 +13,18 @@
       return 'auto';
     }
   };
+  const shown = (mode) => (mode === 'auto' ? (systemDark() ? 'dark' : 'light') : mode);
 
   const apply = (mode) => {
     if (mode === 'auto') document.documentElement.removeAttribute('data-theme');
     else document.documentElement.setAttribute('data-theme', mode);
     const btn = document.getElementById('themeBtn');
     if (btn) {
-      btn.textContent = ICON[mode];
-      btn.title = `${LABEL[mode]} — click to change`;
-      btn.setAttribute('aria-label', LABEL[mode]);
+      const now = shown(mode);
+      btn.textContent = now === 'dark' ? '☀' : '☾';
+      const label = now === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+      btn.title = label;
+      btn.setAttribute('aria-label', label);
     }
   };
 
@@ -30,11 +33,13 @@
   document.addEventListener('DOMContentLoaded', () => {
     apply(read());
     document.getElementById('themeBtn')?.addEventListener('click', () => {
-      const next = MODES[(MODES.indexOf(read()) + 1) % MODES.length];
+      const next = shown(read()) === 'dark' ? 'light' : 'dark';
       try {
         localStorage.setItem('cs-theme', next);
       } catch {}
       apply(next);
     });
+    // While on 'auto', keep the icon right if Windows switches theme.
+    window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', () => apply(read()));
   });
 })();

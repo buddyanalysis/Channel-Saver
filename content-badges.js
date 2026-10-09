@@ -194,6 +194,7 @@
   async function loadMore() {
     if (loading) return;
     loading = true;
+    const endBusy = globalThis.CSBusy?.start('Loading more videos…') || (() => {});
     paintPanel();
     const start = CS.tiles().length;
     const y = window.scrollY;
@@ -214,6 +215,7 @@
     }
     window.scrollTo(0, y);
     loading = false;
+    endBusy();
     paintPanel();
     if (CS.tiles().length === start) CS.toast('YouTube has no more results for this page.');
   }

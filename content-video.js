@@ -233,6 +233,50 @@
     openPanel('Save to Swipe file', form);
   }
 
+  /* ---------- AI title ideas ---------- */
+
+  /** "Add your key" hint with a button to the dashboard's Settings → AI. */
+  CS.aiKeyHint = (box, msg) => {
+    const open = el('button', 'cs-btn-s', '🔑 Open Settings → AI');
+    open.addEventListener('click', () => CS.send('openDashboard', { hash: '#settings-ai' }).catch(() => {}));
+    box.replaceChildren(el('div', 'cs-panel-info', msg), open);
+  };
+
+  async function showTitleIdeas() {
+    const body = el('div', 'cs-ai');
+    body.append(el('div', 'cs-ai-thinking', '✨ AI is writing title ideas…'));
+    openPanel('✨ Title ideas', body);
+    const title = info?.title || document.querySelector('ytd-watch-metadata h1')?.textContent?.trim() || '';
+    const channel = info?.channelName || document.querySelector('ytd-watch-metadata ytd-channel-name a')?.textContent?.trim() || '';
+    try {
+      const d = await CS.send('ai', { task: 'titles', input: { title, channel, views: info?.views ? CS.num(info.views) : '' } });
+      if (!panel?.contains(body)) return;
+      const list = el('ol', 'cs-ai-ideas');
+      for (const it of d.ideas || []) {
+        const li = el('li');
+        const copy = el('button', 'cs-ai-copy', '⧉');
+        copy.title = 'Copy';
+        copy.addEventListener('click', () => navigator.clipboard.writeText(it.title).then(() => CS.toast('Copied')));
+        li.append(el('b', null, it.title), copy, it.angle ? el('span', 'cs-ai-angle', it.angle) : '');
+        list.append(li);
+      }
+      body.replaceChildren(el('div', 'cs-panel-info', `For your own video on this topic — based on “${title.slice(0, 60)}”`), list);
+      if (d.thumbnailText?.length) {
+        body.append(el('div', 'cs-label', 'Thumbnail text ideas'), el('div', 'cs-ai-chips', ''));
+        const chips = body.lastChild;
+        for (const t of d.thumbnailText) chips.append(el('span', 'cs-ai-chip', t));
+      }
+      if (d.tip) body.append(el('div', 'cs-ai-tip', `💡 ${d.tip}`));
+      const again = el('button', 'cs-btn-s', '⟳ More ideas');
+      again.addEventListener('click', showTitleIdeas);
+      body.append(again, el('div', 'cs-panel-info', 'AI can be wrong — use your judgement.'));
+    } catch (e) {
+      if (!panel?.contains(body)) return;
+      if (/Settings/.test(e.message)) CS.aiKeyHint(body, e.message);
+      else body.replaceChildren(el('div', 'cs-empty cs-err', e.message));
+    }
+  }
+
   /* ---------- the bar ---------- */
 
   function button(label, title, fn) {
@@ -259,6 +303,7 @@
       button('📷 Frame', 'Download a screenshot of the current frame', (b) => act(b, async () => saveBlob(await frame(), `${fileName(info?.title)}-${CS.mmss(document.querySelector('video')?.currentTime).replace(/:/g, '-')}.png`), 'Frame saved')),
       button('📌 Swipe file', 'Save this video, a part of it, or its thumbnail', showSwipe),
       button('🔍 Similar videos', 'Same topic or title format on other channels', showSimilarVideos),
+      button('✨ Title ideas', 'AI title ideas for your own video on this topic (needs your AI key)', showTitleIdeas),
     );
     bar.append(meta, tools);
     host.insertAdjacentElement('afterend', bar);

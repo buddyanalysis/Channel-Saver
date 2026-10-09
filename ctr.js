@@ -14,6 +14,8 @@
  * measures it on live viewers, and the page links to it.
  */
 
+import { aiThumbSection, aiThumbAnswer } from './ai-ui.js';
+
 let ctx; // { h, set, send, toast, fmtNum, fmtDuration, getDb, $ }
 const LETTERS = ['A', 'B', 'C'];
 
@@ -225,6 +227,7 @@ function score(v, comps) {
 async function runScores() {
   if (!st.variants.length) return;
   st.analysing = true;
+  const endBusy = globalThis.CSBusy?.start('Analysing thumbnails…') || (() => {});
   paint();
   try {
     const compImgs = [];
@@ -246,6 +249,7 @@ async function runScores() {
   } catch (e) {
     ctx.toast(e.message, true);
   } finally {
+    endBusy();
     st.analysing = false;
     paint();
   }
@@ -523,6 +527,37 @@ function titleTips(t) {
   return out;
 }
 
+/** Plain-text brief of everything to change, for a designer, an editor or a notes app. */
+function instructionsText(i) {
+  const s = st.scores[i];
+  const v = st.variants[i];
+  const fixes = fixList(i);
+  const cc = compColours();
+  const ai = aiThumbAnswer(v);
+  const L = [];
+  L.push(`How to raise the CTR of thumbnail ${LETTERS[i]}${v.title ? ` — "${v.title}"` : ''}`);
+  L.push(`Score now ${s.total}/100${fixes.length ? ` → up to ${Math.min(100, s.total + fixes.reduce((a, f) => a + f.g, 0))} after these fixes` : ''}`);
+  L.push('');
+  fixes.forEach((f, n) => {
+    L.push(`${n + 1}. ${f.title} (+${f.g} pts)`);
+    L.push(`   Why: ${f.why}`);
+    for (const t of f.steps) L.push(`   - ${t}`);
+    L.push('');
+  });
+  if (cc) L.push(`Colours: the competitors mostly use ${HUES[cc.main]} and ${HUES[cc.second]} — stand out with ${HUES[cc.free]}.`, '');
+  if (ai) {
+    L.push(`AI review: ${ai.ctrGuess ?? '–'}/10 — ${ai.why || ''}`);
+    if (ai.firstImpression) L.push(`First impression: ${ai.firstImpression}`);
+    (ai.fixes || []).forEach((t, n) => L.push(`   ${n + 1}) ${t}`));
+    if (ai.titleIdeas?.length) { L.push('Better titles:'); for (const t of ai.titleIdeas) L.push(`   - ${t}`); }
+    L.push('');
+  }
+  L.push('Title:');
+  for (const t of titleTips(v.title)) L.push(`   - ${t.replace(/^✓ /, '')}`);
+  L.push('', 'Checklist: one clear idea · face with strong emotion · 3–4 big words · nothing in the bottom-right corner · test 2–3 versions with YouTube “Test & compare”.');
+  return L.join('\n');
+}
+
 /** An automatically tuned copy (contrast, colour, brightness), scored against the same competitors. */
 async function autoBoost(i) {
   const s = st.scores[i];
@@ -561,12 +596,21 @@ function improvePane() {
           h('div',
             h('b', `How to raise the CTR of Variant ${LETTERS[i]}`),
             h('div.vm', `Score now ${s.total}${fixes.length ? ` → up to ${Math.min(100, s.total + fixes.reduce((a, f) => a + f.g, 0))} if you fix the list below` : ''}`),
-            pick && pick.shown ? h('div.vm', `Click test: picked ${Math.round(pick.rate * 100)}% of the time${pick.rate < 0.34 ? ' — viewers preferred other videos, start with fix #1' : ''}`) : null)),
+            pick && pick.shown ? h('div.vm', `Click test: picked ${Math.round(pick.rate * 100)}% of the time${pick.rate < 0.34 ? ' — viewers preferred other videos, start with fix #1' : ''}`) : null),
+          h('button.btn.small.primary.ctr-copy', { title: 'Copy all instructions for this thumbnail', onclick: (e) => {
+            const b = e.currentTarget;
+            navigator.clipboard.writeText(instructionsText(i)).then(() => {
+              ctx.toast('Instructions copied');
+              b.textContent = '✓ Copied';
+              setTimeout(() => { b.textContent = '📋 Copy instructions'; }, 1500);
+            }, () => ctx.toast('Could not copy', true));
+          } }, '📋 Copy instructions')),
         fixes.length ? h('ol.ctr-fixes', fixes.map((f) => h('li',
           h('div.ctr-fix-top', h('b', f.title), h('span.ctr-gain', `+${f.g} pts`)),
           h('div.vm', f.why),
           h('ul', f.steps.map((t) => h('li', t)))))) : h('div.ctr-ok', '✓ This thumbnail already does well on every measure. Test it against a second idea with the Click test.'),
         f0Colour(),
+        aiThumbSection(i, st.variants[i], { channel: st.channel, competitorTitles: st.videos.map((v) => v.title) }),
         h('div.ctr-sub', '✍ Title'),
         h('ul.ctr-tips', titleTips(st.variants[i].title).map((t) => h('li', t))),
         h('div.ctr-sub', '⚡ Auto-boost'),
@@ -681,7 +725,7 @@ function paint() {
   const live = h('button.btn', { onclick: async () => {
     const v = st.variants[st.show] || st.variants[0];
     if (!v) return ctx.toast('Upload a thumbnail first', true);
-    await chrome.storage.local.set({ thumbTest: { active: true, image: v.image, title: v.title, channel: st.channel, position: 'random', seed: Math.random() } });
+    await chrome.storage.local.set({ thumbTest: { active: true, startedAt: Date.now(), image: v.image, title: v.title, channel: st.channel, position: 'random', seed: Math.random() } });
     chrome.tabs.create({ url: 'https://www.youtube.com/' });
   } }, '▶ Test inside YouTube');
 
