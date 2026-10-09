@@ -41,7 +41,7 @@ New-Item -ItemType Directory -Force dist | Out-Null
 $zip = Join-Path $root 'dist\channel-saver.zip'
 if (Test-Path $zip) { Remove-Item $zip -Force }
 Compress-Archive -Path $stage -DestinationPath $zip
-$zipVersioned = Join-Path $root "distchannel-saver-$Version.zip"
+$zipVersioned = Join-Path $root "dist\channel-saver-$Version.zip"
 Copy-Item $zip $zipVersioned -Force
 
 # 3. code + release
