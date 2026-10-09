@@ -17,7 +17,7 @@ const VERSION = chrome.runtime.getManifest().version;
  * reloaded, so after copying new files the two can disagree — then saving
  * silently breaks. When they differ, ask for a one-click restart.
  */
-const BUILD = '1.9.4';
+const BUILD = '1.9.5';
 
 function showRestart(reason) {
   if (document.getElementById('restartBanner')) return;
@@ -492,6 +492,9 @@ function render() {
 
 const statLink = (k, v, s, title, go) => h('button.stat.stat-link', { title, onclick: go }, h('div.k', k), h('div.v', fmtNum(v)), h('div.s', s), h('span.stat-go', '→'));
 
+/** Promo keys: "Free until 31/12/2026", or "No end date" when expiresAt is 0. */
+const promoTerm = (l) => (l.expiresAt ? `Free until ${new Date(l.expiresAt).toLocaleDateString()}` : 'No end date');
+
 function renderHome() {
   const all = Object.values(db.channels);
   const live = all.filter((c) => c.status !== 'gone');
@@ -501,11 +504,13 @@ function renderHome() {
     h('span.home-ico', icon),
     h('div', h('b', title), h('p', text)),
     stat ? h('span.home-stat', stat) : null);
-  const name = licenseInfo().name;
+  const lic = licenseInfo();
+  const name = lic.name;
   set($('list'), h('section.home',
     h('div.home-hello',
       h('h2', name ? `Welcome ${name}!` : 'Welcome!'),
-      h('p', 'Pick a tool to start. Everything you save stays in your own Chrome.')),
+      h('p', 'Pick a tool to start. Everything you save stays in your own Chrome.'),
+      lic.ok && lic.promo ? h('span.promo-pill', { title: 'Free promo key' }, `🎁 ${promoTerm(lic)}`) : null),
     h('div.home-stats',
       // Each number opens the place where those items live.
       statLink('Saved channels', live.length, `${db.niches.length} niche${db.niches.length === 1 ? '' : 's'}`, 'Open My Library', () => setView('all')),
@@ -698,7 +703,7 @@ async function settingsModal(focus) {
         const l = licenseInfo();
         const day = (t) => (t ? new Date(t).toLocaleDateString() : '');
         return h('p.vm', l.ok
-          ? `Activated${l.name ? ` for ${l.name}` : ''}${l.activatedAt ? ` on ${day(l.activatedAt)}` : ''} · ${l.lifetime ? 'lifetime key' : `valid until ${day(l.expiresAt)}`} · key ${l.key}`
+          ? `Activated${l.name ? ` for ${l.name}` : ''}${l.activatedAt ? ` on ${day(l.activatedAt)}` : ''} · ${l.promo ? `free promo key · ${promoTerm(l)}` : l.lifetime ? 'lifetime key' : `valid until ${day(l.expiresAt)}`} · key ${l.key}`
           : 'Not activated');
       })(),
       h('button.btn.small', { type: 'button', onclick: async () => {

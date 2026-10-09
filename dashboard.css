@@ -828,3 +828,8 @@ a.built-by:hover .built-name { color: #d6336c; }
   .sw-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sw-grid { grid-template-columns: 1fr; }
 }
+
+/* Free promo key: "🎁 Free until …" under the welcome line */
+.promo-pill { display: inline-block; margin-top: 8px; padding: 4px 12px; border-radius: 999px; background: #fff4e0; color: #8a5300; border: 1px solid #f3d9a8; font-size: 13px; font-weight: 600; }
+:root[data-theme="dark"] .promo-pill { background: #3a2c12; color: #f5c56b; border-color: #5c451a; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .promo-pill { background: #3a2c12; color: #f5c56b; border-color: #5c451a; } }

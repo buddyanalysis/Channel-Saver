@@ -90,7 +90,7 @@ async function deviceExtra() {
   return { fp, info: deviceInfo || null, version: chrome.runtime.getManifest().version };
 }
 
-const publicInfo = (l) => ({ ok: !!l?.ok, name: l?.name || '', activatedAt: l?.activatedAt || 0, expiresAt: l?.expiresAt || 0, lifetime: !!l?.lifetime, checkedAt: l?.checkedAt || 0, error: l?.error || '', key: l?.key ? `${l.key.slice(0, 7)}…${l.key.slice(-4)}` : '' });
+const publicInfo = (l) => ({ ok: !!l?.ok, name: l?.name || '', activatedAt: l?.activatedAt || 0, expiresAt: l?.expiresAt || 0, lifetime: !!l?.lifetime, promo: !!l?.promo, checkedAt: l?.checkedAt || 0, error: l?.error || '', key: l?.key ? `${l.key.slice(0, 7)}…${l.key.slice(-4)}` : '' });
 
 /**
  * The current verdict. Uses the saved answer, re-asks letrestart.com every
