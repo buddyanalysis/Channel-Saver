@@ -1,5 +1,5 @@
 {
-    "version":  "1.9.4",
-    "download":  "https://github.com/buddyanalysis/Channel-Saver/releases/download/v1.9.4/channel-saver-1.9.4.zip",
-    "notes":  "Fixes broken symbols and icons (text encoding) from 1.9.3."
+    "version":  "1.9.5",
+    "download":  "https://github.com/buddyanalysis/Channel-Saver/releases/download/v1.9.5/channel-saver-1.9.5.zip",
+    "notes":  "Free promo keys: shows \u0027Free until \u003cdate\u003e\u0027 (or \u0027No end date\u0027); the website\u0027s message is shown when a promo ends or is full."
 }
