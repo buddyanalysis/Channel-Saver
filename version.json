@@ -1,5 +1,5 @@
 {
-    "version":  "1.9.5",
-    "download":  "https://github.com/buddyanalysis/Channel-Saver/releases/download/v1.9.5/channel-saver-1.9.5.zip",
-    "notes":  "Free promo keys: shows \u0027Free until \u003cdate\u003e\u0027 (or \u0027No end date\u0027); the website\u0027s message is shown when a promo ends or is full."
+    "version":  "1.9.6",
+    "download":  "https://github.com/buddyanalysis/Channel-Saver/releases/download/v1.9.6/channel-saver-1.9.6.zip",
+    "notes":  "The update banner no longer stays after you have installed that version."
 }
