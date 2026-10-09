@@ -773,3 +773,7 @@ body.has-restart .side { top: 46px; height: calc(100vh - 46px); }
 @media (min-width: 861px) {
   body.side-hidden .side { display: none; }
 }
+a.built-by { text-decoration: none; cursor: pointer; }
+.built-name { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1.5px; }
+a.built-by:hover { border-color: #e88aa0; }
+a.built-by:hover .built-name { color: #d6336c; }

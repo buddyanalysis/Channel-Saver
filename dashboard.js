@@ -17,7 +17,7 @@ const VERSION = chrome.runtime.getManifest().version;
  * reloaded, so after copying new files the two can disagree — then saving
  * silently breaks. When they differ, ask for a one-click restart.
  */
-const BUILD = '1.8.2';
+const BUILD = '1.9.0';
 
 function showRestart(reason) {
   if (document.getElementById('restartBanner')) return;
@@ -1058,7 +1058,7 @@ function renderUpdate() {
     h('div',
       h('b', `Update available: version ${u.version}`),
       u.notes ? h('div.upd-notes', u.notes) : null,
-      h('div.upd-steps', '1. Download  2. Unzip it over your channel-saver folder (replace files)  3. Click Restart. Your saved channels stay.')),
+      h('div.upd-steps', '1. Download  2. Unzip it (same folder or a new one)  3. chrome://extensions → Load unpacked → that folder (or press ⟳ if you used the same folder). Your channels, niches and activation stay — just never click “Remove”.')),
     u.download ? h('a.btn.primary', { href: u.download, target: '_blank', rel: 'noopener' }, 'Download') : null,
     h('button.btn', { onclick: () => send('restart') }, 'Restart'));
 }

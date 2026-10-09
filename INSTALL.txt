@@ -129,10 +129,12 @@ AGAR MASLA HO
 - Save button nazar nahi aa raha: YouTube page refresh karein (F5).
 - "Channel Saver was updated": YouTube page refresh karein.
 - Channel ka data purana hai: card par ⟳ dabayein. Waise bhi rozana khud refresh hota hai.
-- Naya version aaya: dashboard mein upar "Update available" likha aayega.
-  "Download" dabayein, ZIP ko usi channel-saver folder par extract karein (files replace karein),
-  phir "Restart" dabayein. Aap ka saara data save rehta hai.
-  Extension ko kabhi "Remove" na karein — is se saved channels mit jate hain.
+- Naya version aaya: dashboard mein upar "Update available" likha aayega. "Download" dabayein, phir:
+  · ZIP usi purane folder mein extract karein (files replace) aur chrome://extensions mein ⟳ dabayein, YA
+  · ZIP kisi naye folder mein extract karein aur chrome://extensions → "Load unpacked" → naya folder.
+  Dono tareeqon mein aap ke channels, niches, saved videos aur activation WAHI rehte hain
+  (version 1.9.0 se extension ki pehchaan pakki hai, folder badalne se kuch nahi mitta).
+  Bas extension ko kabhi "Remove" na karein — Remove karne se Chrome saara data mita deta hai.
 - Apna data mehfooz rakhein: dashboard mein "Backup" dabayein. Is se ek file download hogi.
   Naye computer par "Import backup" se wapas le aayein.
 
