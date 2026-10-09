@@ -27,7 +27,7 @@ $manifest = Get-Content manifest.json -Raw
 $manifest = $manifest -replace '"version":\s*"[^"]+"', "`"version`": `"$Version`""
 [IO.File]::WriteAllText((Join-Path $root 'manifest.json'), $manifest)
 # The dashboard compares its own build number with the running manifest to
-# spot an extension that wasn't reloaded after an update — keep them equal.
+# spot an extension that wasn't reloaded after an update - keep them equal.
 $dash = Get-Content dashboard.js -Raw
 $dash = $dash -replace "const BUILD = '[^']+';", "const BUILD = '$Version';"
 [IO.File]::WriteAllText((Join-Path $root 'dashboard.js'), $dash)
@@ -46,7 +46,7 @@ Copy-Item $zip $zipVersioned -Force
 
 # 3. code + release
 git add -A -- . ':!dist' ':!version.json'
-git commit -m "Release $Version" -m $Notes
+git commit -m "Release $Version" -m $(if ($Notes) { $Notes } else { "Channel Saver $Version" }) -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 git push
 gh release create "v$Version" $zipVersioned $zip --repo $repo --title "Channel Saver $Version" --notes $(if ($Notes) { $Notes } else { "Channel Saver $Version" })
 
@@ -54,6 +54,6 @@ gh release create "v$Version" $zipVersioned $zip --repo $repo --title "Channel S
 $info = [ordered]@{ version = $Version; download = $download; notes = $Notes }
 [IO.File]::WriteAllText((Join-Path $root 'version.json'), (($info | ConvertTo-Json) + "`n"))
 git add version.json
-git commit -m "Announce $Version"
+git commit -m "Announce $Version" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 git push
-Write-Host "Released $Version — $download"
+Write-Host "Released $Version - $download"

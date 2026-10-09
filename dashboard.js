@@ -14,10 +14,10 @@ const VERSION = chrome.runtime.getManifest().version;
  * The version these dashboard files belong to (release.ps1 keeps it in sync
  * with manifest.json). Chrome serves an unpacked extension's pages straight
  * from disk but keeps running the old background until the extension is
- * reloaded, so after copying new files the two can disagree — then saving
+ * reloaded, so after copying new files the two can disagree â€” then saving
  * silently breaks. When they differ, ask for a one-click restart.
  */
-const BUILD = '1.9.2';
+const BUILD = '1.9.3';
 
 function showRestart(reason) {
   if (document.getElementById('restartBanner')) return;
@@ -25,7 +25,7 @@ function showRestart(reason) {
   bar.id = 'restartBanner';
   bar.className = 'restart-banner';
   const msg = document.createElement('span');
-  msg.textContent = reason || 'Channel Saver was updated. Click Restart to finish — your saved channels stay.';
+  msg.textContent = reason || 'Channel Saver was updated. Click Restart to finish â€” your saved channels stay.';
   const btn = document.createElement('button');
   btn.textContent = 'Restart now';
   btn.addEventListener('click', () => chrome.runtime.reload());
@@ -88,7 +88,7 @@ function h(sel, attrs, ...kids) {
   return n;
 }
 
-// Every request shows the bottom-right "Loading…" pill while it runs (busy.js).
+// Every request shows the bottom-right "Loadingâ€¦" pill while it runs (busy.js).
 const send = (type, payload = {}) => (globalThis.CSBusy?.track ?? ((t, p) => p))(type,
   new Promise((resolve, reject) => {
     chrome.runtime.sendMessage({ type, ...payload }, (res) => {
@@ -96,8 +96,8 @@ const send = (type, payload = {}) => (globalThis.CSBusy?.track ?? ((t, p) => p))
       if (res?.error) {
         // An old background that doesn't know this request = files updated without a reload.
         if (/^Unknown request/.test(res.error)) showRestart();
-        // Keep the real text ("Unknown request …"): the activation screen shows it with a Restart button.
-        return reject(new Error(/^Unknown request/.test(res.error) ? `${res.error} — Channel Saver needs a restart to finish the update.` : res.error));
+        // Keep the real text ("Unknown request â€¦"): the activation screen shows it with a Restart button.
+        return reject(new Error(/^Unknown request/.test(res.error) ? `${res.error} â€” Channel Saver needs a restart to finish the update.` : res.error));
       }
       resolve(res?.data);
     });
@@ -129,7 +129,7 @@ function rpmFor(ch) {
 function rpmText(ch) {
   const r = rpmFor(ch);
   if (!r) return 'Not set';
-  return r.low === r.high ? `$${r.low}` : `$${r.low}–$${r.high}`;
+  return r.low === r.high ? `$${r.low}` : `$${r.low}â€“$${r.high}`;
 }
 
 const metricsCache = new Map();
@@ -196,13 +196,13 @@ function visibleChannels() {
 
 function renderSide() {
   const all = Object.values(db.channels);
-  $('stats').textContent = `${all.length} channel${all.length === 1 ? '' : 's'} · ${db.niches.length} niche${db.niches.length === 1 ? '' : 's'}`;
+  $('stats').textContent = `${all.length} channel${all.length === 1 ? '' : 's'} Â· ${db.niches.length} niche${db.niches.length === 1 ? '' : 's'}`;
 
   const item = (id, label, n, extra = {}) =>
     h('button.nav-item' + (ui.view === id ? '.on' : '') + (extra.drop ? '.drop' : ''), { onclick: () => setView(id), ...extra.attrs, ...(extra.drop ? dropTarget(extra.drop) : {}) },
       extra.dot ? h('span.dot', { style: { background: extra.dot } }) : null,
       h('span.name', label),
-      extra.pin ? h('span.pin', '📌') : null,
+      extra.pin ? h('span.pin', 'ðŸ“Œ') : null,
       h('span.n', n));
 
   const live = all.filter((c) => c.status !== 'gone');
@@ -210,7 +210,7 @@ function renderSide() {
   const competitorsItem = (label) => item('competitors', label, live.filter((c) => c.competitor).length, {
     drop: (id) => {
       if (db.channels[id]?.competitor) return toast('Already a competitor');
-      return send('updateChannel', { channelId: id, patch: { competitor: true } }).then(() => toast('Added to competitors — checked every 6 hours'));
+      return send('updateChannel', { channelId: id, patch: { competitor: true } }).then(() => toast('Added to competitors â€” checked every 6 hours'));
     },
   });
   const group = toolOf(ui.view);
@@ -220,22 +220,22 @@ function renderSide() {
   $('nicheBlock').hidden = group !== 'library';
   if (group === 'home') {
     set($('nav'),
-      item('home', '🏠 Dashboard', ''),
+      item('home', 'ðŸ  Dashboard', ''),
       h('div.side-label', h('span', 'Tools')),
-      item('finder', '🧭 Niche Finder', ''),
-      item('all', '📚 My Library', live.length),
-      item('similar', '🔍 Similar channels', Object.keys(db.similar || {}).length || ''),
-      competitorsItem('⚔ Competitors'),
-      item('thumbtest', '🎯 CTR Tester', ''),
-      item('swipe', '📌 Swipe file', (db.swipe || []).length || ''));
+      item('finder', 'ðŸ§­ Niche Finder', ''),
+      item('all', 'ðŸ“š My Library', live.length),
+      item('similar', 'ðŸ” Similar channels', Object.keys(db.similar || {}).length || ''),
+      competitorsItem('âš” Competitors'),
+      item('thumbtest', 'ðŸŽ¯ CTR Tester', ''),
+      item('swipe', 'ðŸ“Œ Swipe file', (db.swipe || []).length || ''));
   } else if (group === 'library') {
     set($('nav'),
       item('all', 'All channels', all.length),
-      item('starred', '🔖 Need to look', live.filter((c) => c.starred).length, {
+      item('starred', 'ðŸ”– Need to look', live.filter((c) => c.starred).length, {
         drop: (id) => send('updateChannel', { channelId: id, patch: { starred: true } }).then(() => toast('Added to Need to look')),
       }),
       item('unsorted', 'No niche', live.filter((c) => !c.nicheIds.length).length),
-      competitorsItem('⚔ Competitors'),
+      competitorsItem('âš” Competitors'),
       gone ? item('gone', 'Removed by YouTube', gone) : null);
   } else if (group === 'finder') {
     set($('nav'), FINDER_TABS.map(([tab, label]) => h('button.nav-item' + (finderTab() === tab ? '.on' : ''), { onclick: () => { setFinderTab(tab); render(); } }, h('span.name', label), h('span.n', ''))));
@@ -263,8 +263,8 @@ function renderSide() {
   );
   $('autoRefresh').checked = db.settings.autoRefresh !== false;
   const lb = db.settings.lastBackupAt;
-  $('backupInfo').textContent = lb ? `Auto-backup: ${fmtAge((Date.now() - lb) / 86400000).replace('today', 'today')} · every 12h` : 'Auto-backup: every 12h (first one soon)';
-  $('backupInfo').title = 'Saved to Downloads › Channel Saver Backups. Click to back up now.';
+  $('backupInfo').textContent = lb ? `Auto-backup: ${fmtAge((Date.now() - lb) / 86400000).replace('today', 'today')} Â· every 12h` : 'Auto-backup: every 12h (first one soon)';
+  $('backupInfo').title = 'Saved to Downloads â€º Channel Saver Backups. Click to back up now.';
   $('notify').checked = db.settings.notify !== false;
 }
 
@@ -319,14 +319,14 @@ function channelChips(ch, m) {
   if (ch.status === 'gone') chips.push(h('span.chip.bad', 'Removed by YouTube'));
   chips.push(h('span.chip', m.format));
   if (ch.competitor && ui.view !== 'competitors') chips.push(h('span.chip.accent', 'Competitor'));
-  if (m.ageDays != null && m.ageDays < 365) chips.push(h('span.chip.good', `New · ${fmtChannelAge(m.ageDays)}`));
+  if (m.ageDays != null && m.ageDays < 365) chips.push(h('span.chip.good', `New Â· ${fmtChannelAge(m.ageDays)}`));
   if (!m.monetizable) chips.push(h('span.chip.warn', 'Under 1K subs'));
   if (ch.country) chips.push(h('span.chip', ch.country));
   return chips;
 }
 
 function growthText(m) {
-  if (!m.growth) return { v: '—', cls: '' };
+  if (!m.growth) return { v: 'â€”', cls: '' };
   const d = m.growth.subsPerDay;
   return { v: `${d >= 0 ? '+' : ''}${fmtNum(d)}/day`, cls: d > 0 ? 'up' : d < 0 ? 'down' : '' };
 }
@@ -338,7 +338,7 @@ function videoTile(v, m) {
       v.duration ? h('span.dur', fmtDuration(v.duration)) : null,
       x >= OUTLIER_X ? h('span.x', `${x.toFixed(1)}x`) : null),
     h('div.vt', v.title),
-    h('div.vm', `${fmtNum(v.views)} views · ${fmtAge(v.age)}`));
+    h('div.vm', `${fmtNum(v.views)} views Â· ${fmtAge(v.age)}`));
 }
 
 function card(ch) {
@@ -347,14 +347,14 @@ function card(ch) {
   const watch = ui.view === 'competitors';
   const focused = watch && ui.compFocus === ch.channelId;
   return h('article.card' + (ch.status === 'gone' ? '.gone' : '') + (focused ? '.focus' : ''), {
-    // On Competitors a click picks whose uploads to show up top; ⓘ opens details.
+    // On Competitors a click picks whose uploads to show up top; â“˜ opens details.
     onclick: () => {
       if (!watch) return openDrawer(ch.channelId);
       ui.compFocus = focused ? null : ch.channelId;
       render();
       if (ui.compFocus) window.scrollTo({ top: 0, behavior: 'smooth' });
     },
-    title: watch ? (focused ? 'Click again to hide its uploads' : 'Click to see this competitor’s uploads') : null,
+    title: watch ? (focused ? 'Click again to hide its uploads' : 'Click to see this competitorâ€™s uploads') : null,
     draggable: 'true',
     ondragstart: (e) => dragStart(e, ch),
     ondragend: dragEnd,
@@ -365,7 +365,7 @@ function card(ch) {
       scoreBadge(m.score)),
     h('div.card-title',
       h('h3', h('span.t', ch.title || ch.handle)),
-      h('div.meta', `${ch.handle || ''} · ${fmtNum(ch.subs)} subs · ${fmtNum(ch.videoCount)} videos`)),
+      h('div.meta', `${ch.handle || ''} Â· ${fmtNum(ch.subs)} subs Â· ${fmtNum(ch.videoCount)} videos`)),
     h('div.chips', channelChips(ch, m)),
     // Compact card: the numbers live in the drawer (click the card); competitors keep their upload info.
     watch ? competitorMetrics(ch, m) : null,
@@ -374,12 +374,12 @@ function card(ch) {
     ch.notes ? h('div.card-notes', ch.notes) : null,
     ch.error && ch.status !== 'gone' ? h('div.err', `Last refresh failed: ${ch.error}`) : null,
     h('div.card-foot',
-      h('span.when', busy ? 'Refreshing…' : `Updated ${fmtAge((Date.now() - ch.fetchedAt) / 86400000)}`),
-      iconBtn('🔖', ch.starred ? 'Remove from Need to look' : 'Need to look', () => send('updateChannel', { channelId: ch.channelId, patch: { starred: !ch.starred } }), ch.starred),
-      iconBtn('⟳', 'Refresh data', () => refresh(ch.channelId)),
-      watch ? iconBtn('ⓘ', 'Details: schedule, uploads, activity', () => openDrawer(ch.channelId)) : null,
-      iconBtn('↗', 'Open on YouTube', () => window.open(ch.url, '_blank', 'noopener')),
-      iconBtn('⋯', 'More', (e) => channelMenu(ch, e.clientX, e.clientY))));
+      h('span.when', busy ? 'Refreshingâ€¦' : `Updated ${fmtAge((Date.now() - ch.fetchedAt) / 86400000)}`),
+      iconBtn('ðŸ”–', ch.starred ? 'Remove from Need to look' : 'Need to look', () => send('updateChannel', { channelId: ch.channelId, patch: { starred: !ch.starred } }), ch.starred),
+      iconBtn('âŸ³', 'Refresh data', () => refresh(ch.channelId)),
+      watch ? iconBtn('â“˜', 'Details: schedule, uploads, activity', () => openDrawer(ch.channelId)) : null,
+      iconBtn('â†—', 'Open on YouTube', () => window.open(ch.url, '_blank', 'noopener')),
+      iconBtn('â‹¯', 'More', (e) => channelMenu(ch, e.clientX, e.clientY))));
 }
 
 function metric(k, v, cls = '') {
@@ -399,18 +399,18 @@ function iconBtn(label, title, fn, on) {
 function table(list) {
   const cols = [
     ['Channel', (c) => h('div.tch', h('div.avatar', { style: c.avatar ? { backgroundImage: `url("${c.avatar}")` } : null }), h('div', c.title))],
-    ['Niche', (c) => c.nicheIds.map((id) => nicheById(id)?.title).filter(Boolean).join(', ') || '—'],
+    ['Niche', (c) => c.nicheIds.map((id) => nicheById(id)?.title).filter(Boolean).join(', ') || 'â€”'],
     ['Score', (c) => M(c).score, 'num'],
     ['Subs', (c) => fmtNum(c.subs), 'num'],
     ['Growth', (c) => growthText(M(c)).v, 'num'],
     ['Views / mo', (c) => fmtNum(M(c).monthlyViews), 'num'],
-    ['RPM', (c) => (rpmFor(c) ? rpmText(c) : '—'), 'num'],
+    ['RPM', (c) => (rpmFor(c) ? rpmText(c) : 'â€”'), 'num'],
     ['Median views', (c) => fmtNum(M(c).medianViews), 'num'],
-    ['Uploads / wk', (c) => (M(c).uploadsPerWeek != null ? M(c).uploadsPerWeek.toFixed(1) : '—'), 'num'],
+    ['Uploads / wk', (c) => (M(c).uploadsPerWeek != null ? M(c).uploadsPerWeek.toFixed(1) : 'â€”'), 'num'],
     ['Outliers', (c) => M(c).outliers.length, 'num'],
     ['Age', (c) => fmtChannelAge(M(c).ageDays)],
     ['Format', (c) => M(c).format],
-    ['Country', (c) => c.country || '—'],
+    ['Country', (c) => c.country || 'â€”'],
   ];
   if (ui.view === 'competitors') {
     cols.splice(2, 0,
@@ -418,7 +418,7 @@ function table(list) {
       ['Subs 7d', (c) => signed(M(c).change.subs7d), 'num'],
       ['Views 24h', (c) => signed(M(c).change.views1d), 'num'],
       ['Uploads 7d', (c) => M(c).uploads7d, 'num'],
-      ['Last upload', (c) => fmtAge(M(c).daysSinceUpload) || '—']);
+      ['Last upload', (c) => fmtAge(M(c).daysSinceUpload) || 'â€”']);
   }
   return h('div.table-wrap', h('table',
     h('thead', h('tr', cols.map(([t, , cls]) => h('th' + (cls ? `.${cls}` : ''), t)))),
@@ -464,15 +464,15 @@ function render() {
       h('p', 'Open any channel or video on YouTube and click the purple Save button next to Subscribe. Or paste channel links here.'),
       h('div', { style: { display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' } },
         h('button.btn.primary', { onclick: () => addModal() }, '+ Add channels'),
-        h('button.btn', { onclick: () => $('importFile').click() }, '⤒ Restore from backup')),
-      h('p.restore-hint', 'Had channels before? Click “Restore from backup” and pick Downloads › Channel Saver Backups › channel-saver-backup-latest.json.')));
+        h('button.btn', { onclick: () => $('importFile').click() }, 'â¤’ Restore from backup')),
+      h('p.restore-hint', 'Had channels before? Click â€œRestore from backupâ€ and pick Downloads â€º Channel Saver Backups â€º channel-saver-backup-latest.json.')));
   } else if (!list.length) {
     set(box,
       niche ? nicheVideos(niche) : null,
       ui.view === 'competitors'
-        ? h('div.empty', h('h2', 'No competitors yet'), h('p', 'Drag a channel card onto ⚔ Competitors in the left menu, or open a channel and click "Add to competitors". Competitors are checked every 6 hours so you can see what they post and how fast they grow.'))
+        ? h('div.empty', h('h2', 'No competitors yet'), h('p', 'Drag a channel card onto âš” Competitors in the left menu, or open a channel and click "Add to competitors". Competitors are checked every 6 hours so you can see what they post and how fast they grow.'))
         : niche && nicheVideoItems(niche).length
-          ? h('div.feed-hint', 'No channels in this niche yet — save one from its channel page, or with + Add channels.')
+          ? h('div.feed-hint', 'No channels in this niche yet â€” save one from its channel page, or with + Add channels.')
           : h('div.empty', h('h2', 'Nothing here'), h('p', niche ? 'Save videos or channels into this niche with the purple Save button on YouTube, with + Add channels, or drag a card onto the niche.' : 'No channels match these filters.')));
   } else {
     set(box,
@@ -490,7 +490,7 @@ function render() {
 
 /* ---------- Dashboard (home): the tools ---------- */
 
-const statLink = (k, v, s, title, go) => h('button.stat.stat-link', { title, onclick: go }, h('div.k', k), h('div.v', fmtNum(v)), h('div.s', s), h('span.stat-go', '→'));
+const statLink = (k, v, s, title, go) => h('button.stat.stat-link', { title, onclick: go }, h('div.k', k), h('div.v', fmtNum(v)), h('div.s', s), h('span.stat-go', 'â†’'));
 
 function renderHome() {
   const all = Object.values(db.channels);
@@ -514,12 +514,12 @@ function renderHome() {
       statLink('Saved videos', (db.swipe || []).length, 'swipe file + niches', 'Open Swipe file', () => setView('swipe'))),
     h('div.side-label.home-label', h('span', 'Tools')),
     h('div.home-tools',
-      tool('finder', '🧭', 'Niche Finder', 'Outlier channels, rising niches, trending keywords and viral videos on small channels — live from YouTube.'),
-      tool('all', '📚', 'My Library', 'Your saved channels and niches: growth, outliers, notes, RPM.', `${live.length} channels`),
-      tool('similar', '🔍', 'Similar channels', 'Find 20–40 channels like any channel, with similarity and stats.', Object.keys(db.similar || {}).length ? `${Object.keys(db.similar).length} searches` : ''),
-      tool('competitors', '⚔', 'Competitors', 'Exact upload times, schedule, next upload and first-24h views.', competitors.length ? `${competitors.length} tracked` : ''),
-      tool('thumbtest', '🎯', 'CTR Tester', 'Test thumbnails among real competitors, score them and get a fix list.'),
-      tool('swipe', '📌', 'Swipe file', 'Hooks, video parts and thumbnails you saved from YouTube.', (db.swipe || []).length ? `${db.swipe.length} items` : ''))));
+      tool('finder', 'ðŸ§­', 'Niche Finder', 'Outlier channels, rising niches, trending keywords and viral videos on small channels â€” live from YouTube.'),
+      tool('all', 'ðŸ“š', 'My Library', 'Your saved channels and niches: growth, outliers, notes, RPM.', `${live.length} channels`),
+      tool('similar', 'ðŸ”', 'Similar channels', 'Find 20â€“40 channels like any channel, with similarity and stats.', Object.keys(db.similar || {}).length ? `${Object.keys(db.similar).length} searches` : ''),
+      tool('competitors', 'âš”', 'Competitors', 'Exact upload times, schedule, next upload and first-24h views.', competitors.length ? `${competitors.length} tracked` : ''),
+      tool('thumbtest', 'ðŸŽ¯', 'CTR Tester', 'Test thumbnails among real competitors, score them and get a fix list.'),
+      tool('swipe', 'ðŸ“Œ', 'Swipe file', 'Hooks, video parts and thumbnails you saved from YouTube.', (db.swipe || []).length ? `${db.swipe.length} items` : ''))));
 }
 
 /* ---------- videos saved into a niche ---------- */
@@ -535,17 +535,17 @@ function nicheVideos(niche) {
     toast(`Removed from ${niche.title}`);
   };
   return h('section.feed.niche-videos',
-    h('h2.day-head', '🎬 Saved videos', h('span.count', items.length)),
+    h('h2.day-head', 'ðŸŽ¬ Saved videos', h('span.count', items.length)),
     h('div.feed-row', items.map((it) => h('div.feed-item.nv',
       h('a', { href: swipeLink(it), target: '_blank', rel: 'noopener' },
         h('div.thumb', { style: { backgroundImage: `url("${thumb(it.videoId)}")` } },
-          it.type === 'part' && it.start != null ? h('span.dur', `${fmtDuration(it.start) || '0:00'}–${fmtDuration(it.end)}`) : it.duration ? h('span.dur', fmtDuration(it.duration)) : null),
+          it.type === 'part' && it.start != null ? h('span.dur', `${fmtDuration(it.start) || '0:00'}â€“${fmtDuration(it.end)}`) : it.duration ? h('span.dur', fmtDuration(it.duration)) : null),
         h('div.vt', it.title || '(video)')),
-      h('div.vm', [it.channelName, it.views ? `${fmtNum(it.views)} views` : ''].filter(Boolean).join(' · ')),
+      h('div.vm', [it.channelName, it.views ? `${fmtNum(it.views)} views` : ''].filter(Boolean).join(' Â· ')),
       h('div.vm', it.published ? `Uploaded ${fmtWhen(it.published)}` : `Saved ${fmtAge((Date.now() - it.addedAt) / 86400000)}`),
       h('div.nv-actions',
-        iconBtn('⧉', 'Copy link', () => navigator.clipboard.writeText(swipeLink(it)).then(() => toast('Link copied'))),
-        iconBtn('✕', `Remove from ${niche.title}`, () => remove(it)))))));
+        iconBtn('â§‰', 'Copy link', () => navigator.clipboard.writeText(swipeLink(it)).then(() => toast('Link copied'))),
+        iconBtn('âœ•', `Remove from ${niche.title}`, () => remove(it)))))));
 }
 
 /* ---------- day groups (Recently added) ---------- */
@@ -575,7 +575,7 @@ function dayGroups(list) {
 
 /* ---------- competitors ---------- */
 
-const signed = (n) => (n == null ? '—' : `${n > 0 ? '+' : ''}${fmtNum(n)}`);
+const signed = (n) => (n == null ? 'â€”' : `${n > 0 ? '+' : ''}${fmtNum(n)}`);
 const trend = (n) => (n == null ? '' : n > 0 ? 'up' : n < 0 ? 'down' : '');
 
 function competitorMetrics(ch, m) {
@@ -584,14 +584,14 @@ function competitorMetrics(ch, m) {
   const last = ch.track?.uploads[0];
   return [
     h('div.metrics',
-      metric('Subs · 24h', signed(c.subs1d), trend(c.subs1d)),
-      metric('Subs · 7 days', signed(c.subs7d), trend(c.subs7d)),
-      metric('Views · 24h', signed(c.views1d), trend(c.views1d)),
-      metric('Uploads · 7 days', `${m.uploads7d}`),
+      metric('Subs Â· 24h', signed(c.subs1d), trend(c.subs1d)),
+      metric('Subs Â· 7 days', signed(c.subs7d), trend(c.subs7d)),
+      metric('Views Â· 24h', signed(c.views1d), trend(c.views1d)),
+      metric('Uploads Â· 7 days', `${m.uploads7d}`),
       metric('Typical 24h views', fmtNum(uploadStats(ch).typical24h)),
       metric('Median views', fmtNum(m.medianViews))),
     h('div.track-line',
-      h('div', h('span.k', 'Last upload '), last ? fmtWhen(last.published) : fmtAge(m.daysSinceUpload) || '—'),
+      h('div', h('span.k', 'Last upload '), last ? fmtWhen(last.published) : fmtAge(m.daysSinceUpload) || 'â€”'),
       sch ? h('div', h('span.k', 'Usually '), sch.summary) : null,
       sch?.next ? h('div' + (sch.overdue ? '.late' : ''), h('span.k', sch.overdue ? 'Expected (late) ' : 'Next likely '), fmtWhen(sch.next)) : null),
   ];
@@ -607,9 +607,9 @@ function renderCompetitorBar(bar, list) {
   set(bar,
     stat('Competitors', `${list.length}`, 'checked every 6 hours'),
     stat('Posted in last 24h', `${fresh}`, fresh ? 'channels uploaded today' : 'nobody uploaded today'),
-    stat('Uploads · 7 days', `${sum((m) => m.uploads7d)}`, 'all competitors together'),
-    stat('Fastest today', g != null && g > 0 ? signed(g) : '—', g != null && g > 0 ? gaining.title : 'needs 2 days of data'),
-    stat('Subs gained · 7 days', signed(ms.some((m) => m.change.subs7d != null) ? sum((m) => m.change.subs7d) : null), 'all competitors together'));
+    stat('Uploads Â· 7 days', `${sum((m) => m.uploads7d)}`, 'all competitors together'),
+    stat('Fastest today', g != null && g > 0 ? signed(g) : 'â€”', g != null && g > 0 ? gaining.title : 'needs 2 days of data'),
+    stat('Subs gained Â· 7 days', signed(ms.some((m) => m.change.subs7d != null) ? sum((m) => m.change.subs7d) : null), 'all competitors together'));
 }
 
 /** Newest uploads across all competitors: the "what are they doing" strip. */
@@ -618,7 +618,7 @@ function competitorFeed(all) {
   const focus = all.find((c) => c.channelId === ui.compFocus);
   if (!focus) {
     ui.compFocus = null;
-    return h('div.feed-hint', '👇 Click a competitor below to see its latest uploads with exact upload times.');
+    return h('div.feed-hint', 'ðŸ‘‡ Click a competitor below to see its latest uploads with exact upload times.');
   }
   const list = [focus];
   const WEEK = 7 * 86400000;
@@ -635,10 +635,10 @@ function competitorFeed(all) {
   })
     .sort((a, b) => a.age - b.age)
     .slice(0, 16);
-  const close = h('button.btn.small', { onclick: () => { ui.compFocus = null; render(); } }, '✕ Hide');
-  if (!vids.length) return h('div.feed-empty', h('span', `${focus.title} hasn’t uploaded in the last 7 days.`), close);
+  const close = h('button.btn.small', { onclick: () => { ui.compFocus = null; render(); } }, 'âœ• Hide');
+  if (!vids.length) return h('div.feed-empty', h('span', `${focus.title} hasnâ€™t uploaded in the last 7 days.`), close);
   return h('section.feed',
-    h('h2.day-head', `${focus.title} · uploads in the last 7 days`, h('span.count', vids.length), close),
+    h('h2.day-head', `${focus.title} Â· uploads in the last 7 days`, h('span.count', vids.length), close),
     h('div.feed-row', vids.map((v) => {
       const x = v.m.medianViews ? v.views / v.m.medianViews : 0;
       return h('a.feed-item', { href: ytVideo(v.id), target: '_blank', rel: 'noopener' },
@@ -646,7 +646,7 @@ function competitorFeed(all) {
           v.duration ? h('span.dur', fmtDuration(v.duration)) : null,
           x >= OUTLIER_X ? h('span.x', `${x.toFixed(1)}x`) : null),
         h('div.vt', v.title),
-        h('div.vm', `${v.ch.title} · ${fmtNum(v.views)} views`),
+        h('div.vm', `${v.ch.title} Â· ${fmtNum(v.views)} views`),
         h('div.vm.when', v.published ? fmtWhen(v.published) : fmtAge(v.age)),
         v.v24 != null ? h('div.vm' + (v.vs24 >= 1.5 ? '.hot' : v.vs24 != null && v.vs24 < 0.6 ? '.cold' : ''), `First 24h: ${fmtNum(v.v24)}${v.vs24 ? ` (${v.vs24.toFixed(1)}x usual)` : ''}`) : null);
     })));
@@ -655,7 +655,7 @@ function competitorFeed(all) {
 async function toggleCompetitor(ch) {
   const on = !ch.competitor;
   await send('updateChannel', { channelId: ch.channelId, patch: { competitor: on } });
-  toast(on ? 'Added to competitors — checked every 6 hours' : 'Removed from competitors');
+  toast(on ? 'Added to competitors â€” checked every 6 hours' : 'Removed from competitors');
 }
 
 /* ---------- settings ---------- */
@@ -667,8 +667,8 @@ const FEATURE_LABELS = [
   ['hover', 'Channel preview when hovering a channel name'],
   ['shorts', 'Stats box while watching Shorts'],
   ['videoTools', 'Tools under videos (thumbnail, frame, transcript, swipe file, similar videos)'],
-  ['similarButton', '🔍 Similar button on channel pages'],
-  ['assistedReply', '💬 Assisted reply on comments (YouTube Studio and video pages)'],
+  ['similarButton', 'ðŸ” Similar button on channel pages'],
+  ['assistedReply', 'ðŸ’¬ Assisted reply on comments (YouTube Studio and video pages)'],
 ];
 
 async function settingsModal(focus) {
@@ -687,22 +687,22 @@ async function settingsModal(focus) {
   notify.checked = db.settings.notify !== false;
   openModal(
     h('h3', 'Settings'),
-    h('p', 'Turn off anything you don’t use. Changes apply on YouTube right away.'),
+    h('p', 'Turn off anything you donâ€™t use. Changes apply on YouTube right away.'),
     h('div.set-group', h('div.set-h', 'On YouTube'), boxes),
     h('div.set-group', h('div.set-h', 'Background'),
       h('label.set-row', auto, h('span', 'Refresh saved channels daily (growth tracking)')),
       h('label.set-row', notify, h('span', 'Notify me when a competitor uploads'))),
     aiSec.el,
-    h('div.set-group', h('div.set-h', '🔑 Activation'),
+    h('div.set-group', h('div.set-h', 'ðŸ”‘ Activation'),
       (() => {
         const l = licenseInfo();
         const day = (t) => (t ? new Date(t).toLocaleDateString() : '');
         return h('p.vm', l.ok
-          ? `Activated${l.name ? ` for ${l.name}` : ''}${l.activatedAt ? ` on ${day(l.activatedAt)}` : ''} · ${l.lifetime ? 'lifetime key' : `valid until ${day(l.expiresAt)}`} · key ${l.key}`
+          ? `Activated${l.name ? ` for ${l.name}` : ''}${l.activatedAt ? ` on ${day(l.activatedAt)}` : ''} Â· ${l.lifetime ? 'lifetime key' : `valid until ${day(l.expiresAt)}`} Â· key ${l.key}`
           : 'Not activated');
       })(),
       h('button.btn.small', { type: 'button', onclick: async () => {
-        if (!confirm('Remove the activation key from this computer? Channel Saver locks until a key is entered again. Your saved data stays.\n\nNote: the key stays tied to this computer on letrestart.com — to use it on another computer, ask your admin to reset it.')) return;
+        if (!confirm('Remove the activation key from this computer? Channel Saver locks until a key is entered again. Your saved data stays.\n\nNote: the key stays tied to this computer on letrestart.com â€” to use it on another computer, ask your admin to reset it.')) return;
         await send('deactivate');
         location.reload();
       } }, 'Remove key from this computer')),
@@ -762,7 +762,7 @@ function renderSwipe() {
   const tagCounts = {};
   for (const it of items) for (const t of it.tags || []) tagCounts[t] = (tagCounts[t] || 0) + 1;
 
-  const search = h('input.input', { id: 'swipeQ', placeholder: 'Search titles, notes, tags…' });
+  const search = h('input.input', { id: 'swipeQ', placeholder: 'Search titles, notes, tagsâ€¦' });
   search.value = ui.swipeQ || '';
   search.addEventListener('input', () => {
     ui.swipeQ = search.value;
@@ -779,32 +779,32 @@ function renderSwipe() {
   niche.addEventListener('change', () => { ui.swipeNiche = niche.value; renderSwipe(); });
 
   const head = h('section.sw-head',
-    h('p.sim-intro', 'Videos, parts of videos and thumbnails you saved with 📌 Swipe file under any YouTube video. Search, filter by type, niche or tag.'),
+    h('p.sim-intro', 'Videos, parts of videos and thumbnails you saved with ðŸ“Œ Swipe file under any YouTube video. Search, filter by type, niche or tag.'),
     h('div.sw-form', search, type, niche),
     Object.keys(tagCounts).length ? h('div.chips', { style: { padding: '10px 0 0' } }, Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 20).map(([t, n]) =>
       h('button.chip' + (ui.swipeQ === t ? '.accent' : ''), { onclick: () => { ui.swipeQ = ui.swipeQ === t ? '' : t; renderSwipe(); } }, `#${t} ${n}`))) : null);
 
   if (!items.length) {
-    set($('list'), head, h('div.empty', h('h2', 'Your swipe file is empty'), h('p', 'Open any YouTube video and click 📌 Swipe file under the title to save the video, a part of it (great hook, intro…) or its thumbnail.')));
+    set($('list'), head, h('div.empty', h('h2', 'Your swipe file is empty'), h('p', 'Open any YouTube video and click ðŸ“Œ Swipe file under the title to save the video, a part of it (great hook, introâ€¦) or its thumbnail.')));
     return;
   }
   set($('list'), head, list.length ? h('div.sw-grid', list.map((it) =>
     h('article.sw-card',
       h('a.thumb.sw-thumb', { href: swipeLink(it), target: '_blank', rel: 'noopener', style: { backgroundImage: it.videoId ? `url("https://i.ytimg.com/vi/${it.videoId}/mqdefault.jpg")` : null } },
         h('span.sw-type', SWIPE_TYPES[it.type] || it.type),
-        it.type === 'part' && it.start != null ? h('span.dur', `${fmtDuration(it.start) || '0:00'}–${fmtDuration(it.end)}`) : it.duration ? h('span.dur', fmtDuration(it.duration)) : null),
+        it.type === 'part' && it.start != null ? h('span.dur', `${fmtDuration(it.start) || '0:00'}â€“${fmtDuration(it.end)}`) : it.duration ? h('span.dur', fmtDuration(it.duration)) : null),
       h('div.sw-body',
         h('div.sw-title', it.title || '(untitled)'),
-        h('div.vm', [it.channelName, it.views ? `${fmtNum(it.views)} views` : '', it.published ? new Date(it.published).toLocaleDateString() : ''].filter(Boolean).join(' · ')),
+        h('div.vm', [it.channelName, it.views ? `${fmtNum(it.views)} views` : '', it.published ? new Date(it.published).toLocaleDateString() : ''].filter(Boolean).join(' Â· ')),
         it.note ? h('div.sw-note', it.note) : null,
         h('div.chips', { style: { padding: '6px 0 0' } },
           (it.nicheIds || []).map((id) => nicheById(id)).filter(Boolean).map((n) => h('span.chip.niche', { '--c': n.color }, n.title)),
           (it.tags || []).map((t) => h('span.chip', `#${t}`)))),
       h('div.sw-actions',
         h('span.vm', `Saved ${fmtAge((Date.now() - it.addedAt) / 86400000)}`),
-        iconBtn('✎', 'Edit note, tags, niche', () => editSwipe(it)),
-        iconBtn('⧉', 'Copy link', () => navigator.clipboard.writeText(swipeLink(it)).then(() => toast('Link copied'))),
-        iconBtn('🗑', 'Delete', async () => { if (confirm('Delete this swipe?')) await send('deleteSwipe', { id: it.id }); }))))) : h('div.empty', h('p', 'Nothing matches these filters.')));
+        iconBtn('âœŽ', 'Edit note, tags, niche', () => editSwipe(it)),
+        iconBtn('â§‰', 'Copy link', () => navigator.clipboard.writeText(swipeLink(it)).then(() => toast('Link copied'))),
+        iconBtn('ðŸ—‘', 'Delete', async () => { if (confirm('Delete this swipe?')) await send('deleteSwipe', { id: it.id }); }))))) : h('div.empty', h('p', 'Nothing matches these filters.')));
 }
 
 /* ---------- similar channels ---------- */
@@ -843,20 +843,20 @@ function similarRow(r, seedRec) {
   return h('tr',
     h('td', h('div.tch',
       h('div.avatar', { style: r.avatar ? { backgroundImage: `url("${r.avatar}")` } : null }),
-      h('div', h('div.sim-name', r.title), h('div.vm', [r.handle, r.country].filter(Boolean).join(' · '))))),
-    h('td', h('div.sim-bar', h('span', { style: { width: `${r.similarity}%` } })), h('div.vm', `${r.similarity}% similar${r.sameLanguage ? '' : ' · other language'}`)),
+      h('div', h('div.sim-name', r.title), h('div.vm', [r.handle, r.country].filter(Boolean).join(' Â· '))))),
+    h('td', h('div.sim-bar', h('span', { style: { width: `${r.similarity}%` } })), h('div.vm', `${r.similarity}% similar${r.sameLanguage ? '' : ' Â· other language'}`)),
     h('td.num', fmtNum(r.subs)),
     h('td.num', fmtNum(r.medianViews)),
-    h('td.num', r.ageDays != null ? r.ageDays.toLocaleString() : '—'),
-    h('td.num', r.uploadsPerMonth != null ? r.uploadsPerMonth : '—'),
-    h('td.num', r.lastUpload != null ? fmtAge(r.lastUpload) : '—'),
+    h('td.num', r.ageDays != null ? r.ageDays.toLocaleString() : 'â€”'),
+    h('td.num', r.uploadsPerMonth != null ? r.uploadsPerMonth : 'â€”'),
+    h('td.num', r.lastUpload != null ? fmtAge(r.lastUpload) : 'â€”'),
     h('td.num', r.outliers),
-    h('td.top-vid', r.topVideo ? h('a', { href: ytVideo(r.topVideo.id), target: '_blank', rel: 'noopener', title: `${r.topVideo.title} — ${fmtNum(r.topVideo.views)} views` },
-      h('div.thumb', { style: { backgroundImage: `url("${thumb(r.topVideo.id)}")` } }, h('span.dur', fmtNum(r.topVideo.views)))) : '—'),
+    h('td.top-vid', r.topVideo ? h('a', { href: ytVideo(r.topVideo.id), target: '_blank', rel: 'noopener', title: `${r.topVideo.title} â€” ${fmtNum(r.topVideo.views)} views` },
+      h('div.thumb', { style: { backgroundImage: `url("${thumb(r.topVideo.id)}")` } }, h('span.dur', fmtNum(r.topVideo.views)))) : 'â€”'),
     h('td.actions',
-      saved ? h('button.btn.small', { onclick: () => openDrawer(r.channelId) }, '✓ Saved') : h('button.btn.small.primary', { onclick: save }, '+ Save'),
-      h('button.icon-btn', { title: 'Find channels similar to this one', onclick: () => openSimilar(r.url || r.channelId) }, '🔍'),
-      h('button.icon-btn', { title: 'Open on YouTube', onclick: () => window.open(r.url, '_blank', 'noopener') }, '↗')));
+      saved ? h('button.btn.small', { onclick: () => openDrawer(r.channelId) }, 'âœ“ Saved') : h('button.btn.small.primary', { onclick: save }, '+ Save'),
+      h('button.icon-btn', { title: 'Find channels similar to this one', onclick: () => openSimilar(r.url || r.channelId) }, 'ðŸ”'),
+      h('button.icon-btn', { title: 'Open on YouTube', onclick: () => window.open(r.url, '_blank', 'noopener') }, 'â†—')));
 }
 
 function renderSimilar() {
@@ -866,7 +866,7 @@ function renderSimilar() {
   const cur = ui.similarSeed ? all[ui.similarSeed] : null;
 
   const wasTyping = document.activeElement?.id === 'simInput';
-  const input = h('input.input', { id: 'simInput', placeholder: 'Paste a YouTube channel or video link…' });
+  const input = h('input.input', { id: 'simInput', placeholder: 'Paste a YouTube channel or video linkâ€¦' });
   input.value = ui.simDraft || '';
   input.addEventListener('input', () => { ui.simDraft = input.value; });
   const find = (mode) => {
@@ -878,17 +878,17 @@ function renderSimilar() {
   if (wasTyping) setTimeout(() => { input.focus(); input.setSelectionRange(input.value.length, input.value.length); });
   input.addEventListener('keydown', (e) => e.key === 'Enter' && find('quick'));
   const pick = h('select.input',
-    h('option', { value: '' }, 'or pick a saved channel…'),
+    h('option', { value: '' }, 'or pick a saved channelâ€¦'),
     Object.values(db.channels).sort((a, b) => a.title.localeCompare(b.title)).map((c) => h('option', { value: c.channelId }, c.title)));
   pick.addEventListener('change', () => pick.value && openSimilar(pick.value, false, 'quick'));
 
   const head = h('section.sim-head',
-    h('p.sim-intro', 'Finds channels like this one using what YouTube recommends next to its videos and what ranks for its topics, then scores how closely their videos match. Quick ≈ 20 channels in about a minute; In-depth ≈ 40 channels and also follows the newest uploads, so it finds newer competitors.'),
+    h('p.sim-intro', 'Finds channels like this one using what YouTube recommends next to its videos and what ranks for its topics, then scores how closely their videos match. Quick â‰ˆ 20 channels in about a minute; In-depth â‰ˆ 40 channels and also follows the newest uploads, so it finds newer competitors.'),
     h('div.sim-form.sim-form3', input,
-      h('button.btn.primary', { onclick: () => find('quick'), title: 'At least 20 channels, about a minute' }, '⚡ Quick search'),
-      h('button.btn', { onclick: () => find('deep'), title: 'About 40 channels, 2–4 minutes' }, '🔬 In-depth search'),
+      h('button.btn.primary', { onclick: () => find('quick'), title: 'At least 20 channels, about a minute' }, 'âš¡ Quick search'),
+      h('button.btn', { onclick: () => find('deep'), title: 'About 40 channels, 2â€“4 minutes' }, 'ðŸ”¬ In-depth search'),
       pick),
-    // Past searches; hover one for ✕ to remove it from the history.
+    // Past searches; hover one for âœ• to remove it from the history.
     seeds.length ? h('div.chips.sim-recent', seeds.slice(0, 20).map((x) =>
       h('span.chip.sim-chip' + (x.seed.channelId === ui.similarSeed ? '.accent' : ''), { onclick: () => { ui.similarSeed = x.seed.channelId; render(); } },
         x.seed.title,
@@ -900,10 +900,10 @@ function renderSimilar() {
             if (ui.similarSeed === x.seed.channelId) ui.similarSeed = null;
             send('forgetSimilar', { seedId: x.seed.channelId });
           },
-        }, '✕')))) : null);
+        }, 'âœ•')))) : null);
 
   if (!cur) {
-    set($('list'), head, h('div.empty', h('h2', 'Find channels like any channel'), h('p', 'Paste a link above, or open a saved channel and click 🔍 Similar channels.')));
+    set($('list'), head, h('div.empty', h('h2', 'Find channels like any channel'), h('p', 'Paste a link above, or open a saved channel and click ðŸ” Similar channels.')));
     return;
   }
 
@@ -930,22 +930,22 @@ function renderSimilar() {
     h('section.sim-seed',
       h('div.avatar', { style: cur.seed.avatar ? { backgroundImage: `url("${cur.seed.avatar}")` } : null }),
       h('div', h('h2', `Channels like ${cur.seed.title}`),
-        h('div.vm', runningNow ? `${modeLabel} search · ${cur.stage}… ${cur.done}/${cur.total}` : cur.status === 'error' ? `Search failed: ${cur.error}` : `${results.length} channels · ${modeLabel} search · ${fmtAge((Date.now() - cur.at) / 86400000)}`)),
+        h('div.vm', runningNow ? `${modeLabel} search Â· ${cur.stage}â€¦ ${cur.done}/${cur.total}` : cur.status === 'error' ? `Search failed: ${cur.error}` : `${results.length} channels Â· ${modeLabel} search Â· ${fmtAge((Date.now() - cur.at) / 86400000)}`)),
       h('div.sim-actions',
         results.length ? sortSel : null,
-        h('button.btn', { disabled: runningNow, onclick: () => openSimilar(cur.seed.channelId, true, 'quick') }, runningNow ? 'Searching…' : '⚡ Quick again'),
-        h('button.btn', { disabled: runningNow, onclick: () => openSimilar(cur.seed.channelId, true, 'deep') }, '🔬 In-depth'),
+        h('button.btn', { disabled: runningNow, onclick: () => openSimilar(cur.seed.channelId, true, 'quick') }, runningNow ? 'Searchingâ€¦' : 'âš¡ Quick again'),
+        h('button.btn', { disabled: runningNow, onclick: () => openSimilar(cur.seed.channelId, true, 'deep') }, 'ðŸ”¬ In-depth'),
         results.length ? h('button.btn', { onclick: () => navigator.clipboard.writeText(results.map((r) => r.url).join('\n')).then(() => toast(`${results.length} links copied`)) }, 'Copy links') : null,
-        h('button.icon-btn', { title: 'Remove this search', onclick: () => send('forgetSimilar', { seedId: cur.seed.channelId }) }, '✕'))),
+        h('button.icon-btn', { title: 'Remove this search', onclick: () => send('forgetSimilar', { seedId: cur.seed.channelId }) }, 'âœ•'))),
     runningNow ? h('div.cs-looking',
-      h('div.cs-glass', h('span', '🔍')),
-      h('div.cs-looking-txt', h('b', 'Looking for you…'), h('div.vm', `${cur.stage || 'Starting'}${cur.total ? ` · ${cur.done}/${cur.total}` : ''}`)),
+      h('div.cs-glass', h('span', 'ðŸ”')),
+      h('div.cs-looking-txt', h('b', 'Looking for youâ€¦'), h('div.vm', `${cur.stage || 'Starting'}${cur.total ? ` Â· ${cur.done}/${cur.total}` : ''}`)),
       h('div.cs-progress', h('i', { style: { width: `${pct}%` } }))) : null,
     results.length
       ? h('div.table-wrap', h('table.sim-table',
           h('thead', h('tr', ['Channel', 'Similarity', 'Subs', 'Avg views / video', 'Days since start', 'Uploads / month', 'Last upload', 'Outliers', 'Top video', ''].map((t, i) => h('th' + (i >= 2 && i <= 7 ? '.num' : ''), t)))),
           h('tbody', results.map((r) => similarRow(r, seedRec)))))
-      : runningNow ? h('div.empty', h('p', 'Searching YouTube… results appear here as they are checked (about a minute).')) : h('div.empty', h('p', 'No similar channels found. Try another channel or search again later.')));
+      : runningNow ? h('div.empty', h('p', 'Searching YouTubeâ€¦ results appear here as they are checked (about a minute).')) : h('div.empty', h('p', 'No similar channels found. Try another channel or search again later.')));
 }
 
 /* ---------- competitor tracking (drawer) ---------- */
@@ -964,7 +964,7 @@ function heatmap(sch) {
       })))));
 }
 
-const LOG_ICON = { upload: '▶', title: '✎', outlier: '🔥' };
+const LOG_ICON = { upload: 'â–¶', title: 'âœŽ', outlier: 'ðŸ”¥' };
 
 function trackingSection(ch) {
   const tr = ch.track;
@@ -976,21 +976,21 @@ function trackingSection(ch) {
     } catch (err) {
       toast(err.message, true);
     }
-  } }, '⟳ Check now');
+  } }, 'âŸ³ Check now');
   if (!tr) {
     return h('div.section', h('h4', 'Competitor tracking'),
-      h('div.note', 'Collecting upload history… it appears within a minute.'), check);
+      h('div.note', 'Collecting upload historyâ€¦ it appears within a minute.'), check);
   }
   const sch = schedule(tr.uploads);
   const { rows, typical24h } = uploadStats(ch, 15);
   return h('div.section.track',
     h('h4', 'Competitor tracking'),
     h('div.kv',
-      stat('Usually uploads', sch ? sch.summary : '—', sch ? `from ${sch.sample} recent uploads` : 'needs 2+ uploads'),
-      stat(sch?.overdue ? 'Expected (late)' : 'Next upload likely', sch?.next ? fmtWhen(sch.next) : '—', sch?.next ? 'based on their pattern' : ''),
-      stat('Uploads per week', sch?.perWeek ? sch.perWeek.toFixed(1) : '—', sch?.gapDays ? `every ${sch.gapDays.toFixed(1)} days` : ''),
+      stat('Usually uploads', sch ? sch.summary : 'â€”', sch ? `from ${sch.sample} recent uploads` : 'needs 2+ uploads'),
+      stat(sch?.overdue ? 'Expected (late)' : 'Next upload likely', sch?.next ? fmtWhen(sch.next) : 'â€”', sch?.next ? 'based on their pattern' : ''),
+      stat('Uploads per week', sch?.perWeek ? sch.perWeek.toFixed(1) : 'â€”', sch?.gapDays ? `every ${sch.gapDays.toFixed(1)} days` : ''),
       stat('Typical first 24h', fmtNum(typical24h), typical24h ? 'views on a new video' : 'fills in as new videos come out'),
-      stat('Checked', tr.polledAt ? fmtAge((Date.now() - tr.polledAt) / 86400000) : '—', 'every 30 min while Chrome is open'),
+      stat('Checked', tr.polledAt ? fmtAge((Date.now() - tr.polledAt) / 86400000) : 'â€”', 'every 30 min while Chrome is open'),
       stat('Tracking since', new Date(tr.since).toLocaleDateString(), `${tr.uploads.length} uploads known`)),
     sch ? h('div.sub-h', 'When they upload (your local time)') : null,
     sch ? heatmap(sch) : null,
@@ -1000,15 +1000,15 @@ function trackingSection(ch) {
       h('tbody', rows.map((r) => h('tr', { onclick: () => window.open(ytVideo(r.id), '_blank', 'noopener') },
         h('td', fmtWhen(r.published)),
         h('td.vt-cell', r.title),
-        h('td.num', r.views != null ? r.views.toLocaleString() : '—'),
-        h('td.num' + (r.vs24 >= 1.5 ? '.hot' : r.vs24 != null && r.vs24 < 0.6 ? '.cold' : ''), r.v24 != null ? `${fmtNum(r.v24)}${r.vs24 ? ` · ${r.vs24.toFixed(1)}x` : ''}` : '—'),
-        h('td.num', r.speed != null ? fmtNum(Math.max(0, r.speed)) : '—'),
-        h('td.num', r.likes != null ? `${fmtNum(r.likes)}${r.likeRate ? ` · ${(r.likeRate * 100).toFixed(1)}%` : ''}` : '—')))))),
+        h('td.num', r.views != null ? r.views.toLocaleString() : 'â€”'),
+        h('td.num' + (r.vs24 >= 1.5 ? '.hot' : r.vs24 != null && r.vs24 < 0.6 ? '.cold' : ''), r.v24 != null ? `${fmtNum(r.v24)}${r.vs24 ? ` Â· ${r.vs24.toFixed(1)}x` : ''}` : 'â€”'),
+        h('td.num', r.speed != null ? fmtNum(Math.max(0, r.speed)) : 'â€”'),
+        h('td.num', r.likes != null ? `${fmtNum(r.likes)}${r.likeRate ? ` Â· ${(r.likeRate * 100).toFixed(1)}%` : ''}` : 'â€”')))))),
     h('div.note', 'First 24h is measured only for videos uploaded after tracking started (Chrome must be open around that time). 1.5x+ is green, under 0.6x is red.'),
     h('div.sub-h', 'Activity'),
     tr.log.length
       ? h('div.log-list', tr.log.slice(0, 30).map((l) => h('div.log-item',
-          h('span.li', LOG_ICON[l.type] || '•'),
+          h('span.li', LOG_ICON[l.type] || 'â€¢'),
           h('div',
             h('div', l.type === 'upload' ? `Uploaded: ${l.text}` : l.type === 'title' ? `Changed title to: ${l.text}` : `Became an outlier (${(l.x || 0).toFixed(1)}x): ${l.text}`),
             l.type === 'title' && l.from ? h('div.vm', `Was: ${l.from}`) : null,
@@ -1051,7 +1051,7 @@ function dropTarget(onDrop) {
 function renderUpdate() {
   const u = db.settings.update;
   const box = $('updateBanner');
-  $('versionBtn').textContent = `Version ${VERSION} · Check for updates`;
+  $('versionBtn').textContent = `Version ${VERSION} Â· Check for updates`;
   if (!u) {
     box.hidden = true;
     return;
@@ -1061,7 +1061,7 @@ function renderUpdate() {
     h('div',
       h('b', `Update available: version ${u.version}`),
       u.notes ? h('div.upd-notes', u.notes) : null,
-      h('div.upd-steps', '1. Download  2. Unzip it (same folder or a new one)  3. chrome://extensions → Load unpacked → that folder (or press ⟳ if you used the same folder). Your channels, niches and activation stay — just never click “Remove”.')),
+      h('div.upd-steps', '1. Download  2. Unzip it (same folder or a new one)  3. chrome://extensions â†’ Load unpacked â†’ that folder (or press âŸ³ if you used the same folder). Your channels, niches and activation stay â€” just never click â€œRemoveâ€.')),
     u.download ? h('a.btn.primary', { href: u.download, target: '_blank', rel: 'noopener' }, 'Download') : null,
     h('button.btn', { onclick: () => send('restart') }, 'Restart'));
 }
@@ -1140,7 +1140,7 @@ function renderDrawer() {
   const g = growthText(m);
   const busy = refreshing.has(ch.channelId);
 
-  const notes = h('textarea', { rows: 4, placeholder: 'Why did you save this channel? Ideas, style, what to copy…' });
+  const notes = h('textarea', { rows: 4, placeholder: 'Why did you save this channel? Ideas, style, what to copyâ€¦' });
   notes.value = ch.notes || '';
   let notesTimer;
   notes.addEventListener('input', () => {
@@ -1152,21 +1152,21 @@ function renderDrawer() {
   const shortsTop = [...(ch.shorts || [])].sort((a, b) => b.views - a.views).slice(0, 6);
 
   set(d, 
-    h('button.icon-btn.d-close', { onclick: closeDrawer, 'aria-label': 'Close' }, '✕'),
+    h('button.icon-btn.d-close', { onclick: closeDrawer, 'aria-label': 'Close' }, 'âœ•'),
     h('div.d-banner', { style: ch.banner ? { backgroundImage: `url("${ch.banner}")` } : null }),
     h('div.d-head',
       h('div.avatar', { style: ch.avatar ? { backgroundImage: `url("${ch.avatar}")` } : null }),
       scoreBadge(m.score)),
     h('div.d-body',
       h('h2', ch.title),
-      h('div.d-sub', [ch.handle, `${fmtNum(ch.subs)} subscribers`, `${fmtNum(ch.videoCount)} videos`, ch.totalViews ? `${fmtNum(ch.totalViews)} total views` : null].filter(Boolean).join(' · ')),
+      h('div.d-sub', [ch.handle, `${fmtNum(ch.subs)} subscribers`, `${fmtNum(ch.videoCount)} videos`, ch.totalViews ? `${fmtNum(ch.totalViews)} total views` : null].filter(Boolean).join(' Â· ')),
       h('div.chips', { style: { padding: '10px 0 0' } }, channelChips(ch, m)),
       h('div.d-actions',
-        h('a.btn.primary', { href: ch.url, target: '_blank', rel: 'noopener' }, 'Open on YouTube ↗'),
-        h('button.btn', { onclick: () => refresh(ch.channelId), disabled: busy }, busy ? 'Refreshing…' : '⟳ Refresh'),
-        h('button.btn' + (ch.starred ? '.primary' : ''), { onclick: () => send('updateChannel', { channelId: ch.channelId, patch: { starred: !ch.starred } }) }, ch.starred ? '🔖 Need to look' : '🔖 Mark: need to look'),
-        h('button.btn' + (ch.competitor ? '.primary' : ''), { onclick: () => toggleCompetitor(ch) }, ch.competitor ? '⚔ Competitor' : '⚔ Add to competitors'),
-        h('button.btn', { onclick: () => { closeDrawer(); openSimilar(ch.channelId); } }, '🔍 Similar channels'),
+        h('a.btn.primary', { href: ch.url, target: '_blank', rel: 'noopener' }, 'Open on YouTube â†—'),
+        h('button.btn', { onclick: () => refresh(ch.channelId), disabled: busy }, busy ? 'Refreshingâ€¦' : 'âŸ³ Refresh'),
+        h('button.btn' + (ch.starred ? '.primary' : ''), { onclick: () => send('updateChannel', { channelId: ch.channelId, patch: { starred: !ch.starred } }) }, ch.starred ? 'ðŸ”– Need to look' : 'ðŸ”– Mark: need to look'),
+        h('button.btn' + (ch.competitor ? '.primary' : ''), { onclick: () => toggleCompetitor(ch) }, ch.competitor ? 'âš” Competitor' : 'âš” Add to competitors'),
+        h('button.btn', { onclick: () => { closeDrawer(); openSimilar(ch.channelId); } }, 'ðŸ” Similar channels'),
         h('button.btn.danger', { onclick: () => deleteChannel(ch) }, 'Delete')),
 
       ch.competitor ? trackingSection(ch) : null,
@@ -1175,7 +1175,7 @@ function renderDrawer() {
 
       h('div.section', h('h4', 'Views & RPM'),
         h('div.kv',
-          stat('RPM', rpmText(ch), rpmFor(ch) ? 'set on the niche' : 'set it from the niche ⋯ menu'),
+          stat('RPM', rpmText(ch), rpmFor(ch) ? 'set on the niche' : 'set it from the niche â‹¯ menu'),
           stat('Views per month', fmtNum(m.monthlyViews), m.monthlySource),
           stat('Monetisation', m.monetizable ? '1K+ subs' : 'Under 1K subs', m.monetizable ? 'meets the subscriber rule' : 'probably not monetised yet'))),
 
@@ -1183,13 +1183,13 @@ function renderDrawer() {
         h('div.kv',
           stat('Subscribers / day', g.v, m.growth ? `over ${m.growth.days} days` : 'needs 2+ days of data'),
           stat('Channel age', fmtChannelAge(m.ageDays), ch.joined ? `joined ${ch.joined}` : ''),
-          stat('Uploads / week', m.uploadsPerWeek != null ? m.uploadsPerWeek.toFixed(1) : '—', m.daysSinceUpload != null ? `last upload ${fmtAge(m.daysSinceUpload)}` : ''),
+          stat('Uploads / week', m.uploadsPerWeek != null ? m.uploadsPerWeek.toFixed(1) : 'â€”', m.daysSinceUpload != null ? `last upload ${fmtAge(m.daysSinceUpload)}` : ''),
           stat('Median views', fmtNum(m.medianViews), 'per recent long video'),
-          stat('Views per sub', m.viewsPerSub != null ? m.viewsPerSub.toFixed(2) : '—', 'above 0.5 = audience is hungry'),
-          stat('Typical length', fmtDuration(m.avgDuration) || '—', m.format)),
+          stat('Views per sub', m.viewsPerSub != null ? m.viewsPerSub.toFixed(2) : 'â€”', 'above 0.5 = audience is hungry'),
+          stat('Typical length', fmtDuration(m.avgDuration) || 'â€”', m.format)),
         h('div', { style: { marginTop: '10px' } }, growthChart(ch.snapshots))),
 
-      h('div.section', h('h4', `Outlier videos (${m.outliers.length}) — ${OUTLIER_X}x+ the channel's median`),
+      h('div.section', h('h4', `Outlier videos (${m.outliers.length}) â€” ${OUTLIER_X}x+ the channel's median`),
         m.outliers.length
           ? h('div.vlist', m.outliers.slice(0, 8).map((v) => vrow(v, `${v.x.toFixed(1)}x median`)))
           : h('div.note', 'No video has beaten this channel\'s median by 3x yet.')),
@@ -1223,14 +1223,14 @@ function renderDrawer() {
         ? h('div.section', h('h4', 'Links'), h('div.links', ch.links.map((l) =>
             h('a', { href: /^https?:/.test(l.url) ? l.url : `https://${l.url}`, target: '_blank', rel: 'noopener' }, l.title || l.url))))
         : null,
-      h('div.note', `Added ${new Date(ch.addedAt).toLocaleDateString()} · data from ${new Date(ch.fetchedAt).toLocaleString()}`)),
+      h('div.note', `Added ${new Date(ch.addedAt).toLocaleDateString()} Â· data from ${new Date(ch.fetchedAt).toLocaleString()}`)),
   );
 }
 
 function vrow(v, extra) {
   return h('a.vrow', { href: ytVideo(v.id), target: '_blank', rel: 'noopener' },
     h('div.thumb', { style: { backgroundImage: `url("${thumb(v.id)}")` } }, v.duration ? h('span.dur', fmtDuration(v.duration)) : null),
-    h('div', h('div.vt', v.title), h('div.vm', [`${fmtNum(v.views)} views`, fmtAge(v.age), extra].filter(Boolean).join(' · '))));
+    h('div', h('div.vt', v.title), h('div.vm', [`${fmtNum(v.views)} views`, fmtAge(v.age), extra].filter(Boolean).join(' Â· '))));
 }
 
 /* ---------- actions ---------- */
@@ -1308,7 +1308,7 @@ function nicheMenu(n, x, y) {
       if (t?.trim()) await send('updateNiche', { id: n.id, patch: { title: t.trim().slice(0, 80) } });
     } },
     { label: n.pinned ? 'Unpin' : 'Pin to top', fn: () => send('updateNiche', { id: n.id, patch: { pinned: !n.pinned } }) },
-    { label: 'RPM & notes…', fn: () => nicheSettings(n) },
+    { label: 'RPM & notesâ€¦', fn: () => nicheSettings(n) },
     { label: 'Copy all channel links', fn: () => copyLinks(Object.values(db.channels).filter((c) => c.nicheIds.includes(n.id))) },
     '-',
     { label: 'Delete niche', danger: true, fn: async () => {
@@ -1331,7 +1331,7 @@ function closeModal() {
 function nicheSettings(n) {
   const low = h('input.input', { type: 'number', min: 0, step: 0.1, placeholder: '1' });
   const high = h('input.input', { type: 'number', min: 0, step: 0.1, placeholder: '4' });
-  const notes = h('textarea', { rows: 5, placeholder: 'What you learned about this niche, video ideas, competitors…' });
+  const notes = h('textarea', { rows: 5, placeholder: 'What you learned about this niche, video ideas, competitorsâ€¦' });
   low.value = n.rpmLow ?? '';
   high.value = n.rpmHigh ?? '';
   notes.value = n.notes || '';
@@ -1357,11 +1357,11 @@ function nicheSettings(n) {
 }
 
 function addModal() {
-  const area = h('textarea', { rows: 7, placeholder: 'https://www.youtube.com/@channel\n@anotherchannel\nhttps://www.youtube.com/watch?v=…' });
+  const area = h('textarea', { rows: 7, placeholder: 'https://www.youtube.com/@channel\n@anotherchannel\nhttps://www.youtube.com/watch?v=â€¦' });
   const sel = h('select.input',
     h('option', { value: '' }, 'No niche'),
     [...db.niches].sort((a, b) => a.title.localeCompare(b.title)).map((n) => h('option', { value: n.id }, n.title)),
-    h('option', { value: '__new' }, '+ Create new niche…'));
+    h('option', { value: '__new' }, '+ Create new nicheâ€¦'));
   if (nicheById(ui.view)) sel.value = ui.view;
   const newName = h('input.input', { placeholder: 'New niche name, e.g. "Ancient history"', maxlength: 80 });
   const newField = h('label.field', { hidden: true }, 'New niche name', newName);
@@ -1410,10 +1410,10 @@ function addModal() {
       bar.style.width = `${(i / lines.length) * 100}%`;
       try {
         const res = await send('add', { input: lines[i], nicheId });
-        log.prepend(h('div', `${res.already ? '• Already there' : '✓ Added'}: ${res.channel.title}`));
+        log.prepend(h('div', `${res.already ? 'â€¢ Already there' : 'âœ“ Added'}: ${res.channel.title}`));
       } catch (e) {
         failed.push(lines[i]);
-        log.prepend(h('div.bad', `✕ ${lines[i]} — ${e.message}`));
+        log.prepend(h('div.bad', `âœ• ${lines[i]} â€” ${e.message}`));
       }
       // A short pause keeps YouTube from rate-limiting a long list.
       if (i < lines.length - 1) await new Promise((r) => setTimeout(r, 1200));
@@ -1427,7 +1427,7 @@ function addModal() {
 
   openModal(
     h('h3', 'Add channels'),
-    h('p', 'Paste channel or video links, one per line. Many at once is fine — they are added one by one. Failed links stay in the box.'),
+    h('p', 'Paste channel or video links, one per line. Many at once is fine â€” they are added one by one. Failed links stay in the box.'),
     h('label.field', 'Links', area),
     h('label.field', 'Put them in', sel),
     newField,
@@ -1472,7 +1472,7 @@ function exportCsv() {
       c.competitor ? 'Yes' : '', c.starred ? 'Yes' : '', new Date(c.addedAt).toLocaleDateString(), c.notes];
   });
   // BOM so Excel reads Urdu/emoji titles correctly.
-  download(`channel-saver-${new Date().toISOString().slice(0, 10)}.csv`, `﻿${[head, ...rows].map((r) => r.map(esc).join(',')).join('\r\n')}`, 'text/csv');
+  download(`channel-saver-${new Date().toISOString().slice(0, 10)}.csv`, `ï»¿${[head, ...rows].map((r) => r.map(esc).join(',')).join('\r\n')}`, 'text/csv');
 }
 
 function backup() {
@@ -1515,7 +1515,7 @@ function bind() {
   $('backupInfo').onclick = async () => {
     try {
       const r = await send('backupNow');
-      toast(r.ok ? `Backed up ${r.channels} channels to Downloads › Channel Saver Backups` : `Nothing to back up (${r.skipped})`);
+      toast(r.ok ? `Backed up ${r.channels} channels to Downloads â€º Channel Saver Backups` : `Nothing to back up (${r.skipped})`);
     } catch (e) {
       toast(e.message, true);
     }
@@ -1525,7 +1525,7 @@ function bind() {
   $('importFile').onchange = (e) => { if (e.target.files[0]) importFile(e.target.files[0]); e.target.value = ''; };
   $('autoRefresh').onchange = (e) => send('saveSettings', { patch: { autoRefresh: e.target.checked } });
   $('notify').onchange = (e) => send('saveSettings', { patch: { notify: e.target.checked } });
-  // ☰ : on small screens the menu slides over the page; on wide screens it hides / shows
+  // â˜° : on small screens the menu slides over the page; on wide screens it hides / shows
   // the left menu and remembers the choice.
   const small = window.matchMedia('(max-width: 860px)');
   const setHidden = (on) => {
@@ -1542,7 +1542,7 @@ function bind() {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { closePop(); closeModal(); closeDrawer(); }
   });
-  // Right-click a niche for its menu; also a ⋯ on hover would crowd the list.
+  // Right-click a niche for its menu; also a â‹¯ on hover would crowd the list.
   $('niches').title = 'Right-click a niche for rename, RPM, notes, delete';
   window.addEventListener('hashchange', fromHash);
   chrome.storage.onChanged.addListener(async (changes, area) => {

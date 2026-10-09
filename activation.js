@@ -4,6 +4,8 @@
  * off). Saved data is never touched: it shows up again the moment a key works.
  */
 
+import { collectDevice } from './lib/fingerprint.js';
+
 let state = { ok: false };
 // New files copied in but Chrome still runs the old background: it doesn't know the activation requests.
 const OLD_BACKGROUND = /Unknown request|Restart now/i;
@@ -59,7 +61,9 @@ function overlay(send, { needsRestart = false } = {}) {
     wrap.classList.add('lock-done'); // this screen handles the reload itself
     msg.textContent = '';
     try {
-      state = await send('activate', { key: key.value });
+      // The computer fingerprint goes with the key (computed here: the background has no WebGL).
+      const { fp, info } = await collectDevice().catch(() => ({ fp: '', info: null }));
+      state = await send('activate', { key: key.value, fp, info });
       msg.className = 'lock-msg ok';
       msg.textContent = `✓ Activated${state.name ? ` for ${state.name}` : ''}. Loading…`;
       setTimeout(() => location.reload(), 700);

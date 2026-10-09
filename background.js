@@ -44,7 +44,7 @@ async function runFinder({ window = 'week', maxSubs = 50000, lang = 'any', categ
 /* ---------- activation key (checked by letrestart.com) ---------- */
 
 // What works before activation: the activation screen itself, updates and backups.
-const OPEN_REQUESTS = new Set(['activate', 'deactivate', 'licenseStatus', 'checkUpdate', 'restart', 'openDashboard', 'backupNow']);
+const OPEN_REQUESTS = new Set(['activate', 'deactivate', 'licenseStatus', 'checkUpdate', 'restart', 'openDashboard', 'backupNow', 'fpResult']);
 const LOCKED = 'Channel Saver is not activated. Open the Channel Saver dashboard and enter your activation key.';
 const LIC_HOUR = 3600000; // (HOUR is declared further down)
 const CHECK_EVERY = 6 * LIC_HOUR;
@@ -56,6 +56,38 @@ async function deviceId() {
   const fresh = crypto.randomUUID();
   await chrome.storage.local.set({ deviceId: fresh });
   return fresh;
+}
+
+/**
+ * The computer fingerprint (lib/fingerprint.js), kept in storage. Pages hand it over when they
+ * have it; otherwise a hidden offscreen page computes it (the service worker has no WebGL).
+ */
+let fpWaiters = [];
+async function computerFp() {
+  const { fp, deviceInfo } = await chrome.storage.local.get(['fp', 'deviceInfo']);
+  if (fp && deviceInfo) return fp;
+  try {
+    const got = new Promise((resolve) => {
+      fpWaiters.push(resolve);
+      setTimeout(() => resolve({ fp: '' }), 8000);
+    });
+    if (!(await chrome.offscreen.hasDocument?.())) {
+      await chrome.offscreen.createDocument({ url: 'offscreen.html', reasons: ['DOM_SCRAPING'], justification: 'Compute the computer fingerprint (WebGL renderer, screen) used for licence activation.' });
+    }
+    const { fp: value, info } = await got;
+    chrome.offscreen.closeDocument().catch(() => {});
+    if (value) await chrome.storage.local.set({ fp: value, deviceInfo: info || null });
+    return value || fp || '';
+  } catch {
+    return '';
+  }
+}
+
+/** { fp, info, version } for a licence request. */
+async function deviceExtra() {
+  const fp = await computerFp();
+  const { deviceInfo } = await chrome.storage.local.get(['deviceInfo']);
+  return { fp, info: deviceInfo || null, version: chrome.runtime.getManifest().version };
 }
 
 const publicInfo = (l) => ({ ok: !!l?.ok, name: l?.name || '', activatedAt: l?.activatedAt || 0, expiresAt: l?.expiresAt || 0, lifetime: !!l?.lifetime, checkedAt: l?.checkedAt || 0, error: l?.error || '', key: l?.key ? `${l.key.slice(0, 7)}…${l.key.slice(-4)}` : '' });
@@ -77,7 +109,7 @@ async function license({ force = false } = {}) {
   if (!due || (!lic.ok && !force)) return lic;
   checking ||= (async () => {
     try {
-      const res = await callLicense('check', lic.key, await deviceId());
+      const res = await callLicense('check', lic.key, await deviceId(), await deviceExtra());
       const next = res.ok
         ? { key: lic.key, ...res, ok: true, error: '', checkedAt: Date.now(), lastGood: Date.now() }
         : { ...lic, ok: false, error: res.error, checkedAt: Date.now() };
@@ -394,13 +426,15 @@ const HANDLERS = {
 
   checkUpdate: () => checkUpdate(),
 
-  activate: async ({ key }) => {
+  activate: async ({ key, fp: pageFp, info: pageInfo }) => {
     const k = normalizeKey(key);
     if (!k) throw new Error('That doesn’t look like an activation key. It looks like LR-XXXX-XXXX-XXXX-XXXX.');
     const device = await deviceId();
-    let res = await callLicense('activate', k, device);
+    if (pageFp) await chrome.storage.local.set({ fp: pageFp, ...(pageInfo ? { deviceInfo: pageInfo } : {}) });
+    const extra = await deviceExtra();
+    let res = await callLicense('activate', k, device, extra);
     // Re-entering a key already activated on this same computer: confirm it with a check.
-    if (!res.ok && /already/i.test(res.error) && !/another device/i.test(res.error)) res = await callLicense('check', k, device);
+    if (!res.ok && /already/i.test(res.error) && !/another device/i.test(res.error)) res = await callLicense('check', k, device, extra);
     if (!res.ok) throw new Error(res.error);
     const lic = { key: k, ...res, ok: true, error: '', checkedAt: Date.now(), lastGood: Date.now() };
     await chrome.storage.local.set({ license: lic });
@@ -411,6 +445,13 @@ const HANDLERS = {
     return { ok: false };
   },
   // The dashboard asks on open: re-check with the website if the last check is over an hour old.
+  // The offscreen page reports the fingerprint here.
+  fpResult: async ({ fp, info }) => {
+    const waiters = fpWaiters;
+    fpWaiters = [];
+    waiters.forEach((w) => w({ fp: fp || '', info: info || null }));
+    return { ok: true };
+  },
   licenseStatus: async () => {
     const { license: lic } = await chrome.storage.local.get(['license']);
     return publicInfo(await license({ force: !!lic?.key && Date.now() - (lic.checkedAt || 0) > LIC_HOUR }));
@@ -815,12 +856,53 @@ async function tick() {
   }
 }
 
+/**
+ * On browser start and after an update, re-activate with the saved key by itself —
+ * the user is only asked for a key when letrestart.com answers ok:false.
+ */
+async function autoActivate(action = 'activate') {
+  const { license: lic } = await chrome.storage.local.get(['license']);
+  if (!lic?.key) return;
+  try {
+    const res = await callLicense(action, lic.key, await deviceId(), await deviceExtra());
+    const next = res.ok
+      ? { key: lic.key, ...res, ok: true, error: '', checkedAt: Date.now(), lastGood: Date.now() }
+      : { ...lic, ok: false, error: res.error, checkedAt: Date.now() };
+    await chrome.storage.local.set({ license: next });
+  } catch {
+    /* offline: keep the saved state, the regular check tries again later */
+  }
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create('refresh', { periodInMinutes: 30, delayInMinutes: 1 });
 });
 chrome.runtime.onStartup.addListener(() => {
   chrome.alarms.create('refresh', { periodInMinutes: 30, delayInMinutes: 1 });
 });
+
+// When the background starts (it also restarts by itself every few minutes, so this is guarded):
+//  · a new version (update — including a new folder loaded with "Load unpacked", which Chrome
+//    reports as an install) → ?cc=activate with the saved key, no key screen;
+//  · otherwise once per browser session → ?cc=check, so the admin panel's "Last seen" updates.
+// A few seconds later: right at browser launch the network often isn't up yet.
+setTimeout(async () => {
+  try {
+    const version = chrome.runtime.getManifest().version;
+    const { autoActivated } = await chrome.storage.local.get(['autoActivated']);
+    if (autoActivated?.version !== version) {
+      await chrome.storage.local.set({ autoActivated: { version, at: Date.now() } });
+      await chrome.storage.session.set({ seenSent: true });
+      return autoActivate('activate');
+    }
+    const { seenSent } = await chrome.storage.session.get(['seenSent']);
+    if (seenSent) return;
+    await chrome.storage.session.set({ seenSent: true });
+    await autoActivate('check');
+  } catch {
+    /* tries again next start */
+  }
+}, 3000);
 chrome.alarms.onAlarm.addListener((a) => {
   if (a.name === 'refresh') tick().catch(() => {});
 });
