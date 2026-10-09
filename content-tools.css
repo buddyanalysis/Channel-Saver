@@ -1,0 +1,119 @@
+/* Badges, filter panel, hover card, Shorts box and video tools on YouTube.
+   YouTube sets [dark] on <html> in dark mode. */
+
+.cs-panel, .cs-hover, .cs-shortsbox {
+  --cs-bg: #fff; --cs-fg: #0f0f0f; --cs-mut: #606060; --cs-line: rgba(0,0,0,.1); --cs-soft: rgba(0,0,0,.05);
+  background: var(--cs-bg); color: var(--cs-fg);
+  font: 13px/1.4 Roboto, Arial, sans-serif;
+}
+html[dark] .cs-panel, html[dark] .cs-hover, html[dark] .cs-shortsbox {
+  --cs-bg: #212121; --cs-fg: #ffffff; --cs-mut: #d0d0d0; --cs-line: rgba(255,255,255,.12); --cs-soft: rgba(255,255,255,.07);
+}
+.cs-btn.cs-btn-ghost { background: rgba(124, 58, 237, 0.14); color: #7c3aed; }
+html[dark] .cs-btn.cs-btn-ghost { color: #c4b5fd; }
+.cs-btn.cs-btn-ghost:hover { background: rgba(124, 58, 237, 0.24); }
+.cs-x { margin-left: auto; background: none; border: 0; color: inherit; font-size: 15px; cursor: pointer; opacity: .7; padding: 2px 6px; }
+.cs-x:hover { opacity: 1; }
+
+/* ---------- badges on video tiles ---------- */
+.cs-badges { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 2px; }
+.cs-badges[hidden], html.cs-no-badges .cs-badges { display: none !important; }
+.cs-b {
+  display: inline-flex; align-items: center; height: 18px; padding: 0 6px; border-radius: 4px;
+  background: rgba(124, 58, 237, 0.12); color: #6d28d9;
+  font: 600 11px/18px Roboto, Arial, sans-serif; white-space: nowrap;
+}
+html[dark] .cs-b { color: #c4b5fd; background: rgba(139, 92, 246, 0.2); }
+.cs-b.warm { background: rgba(245, 158, 11, 0.18); color: #b45309; }
+html[dark] .cs-b.warm { color: #fcd34d; }
+.cs-b.hot { background: #16a34a; color: #fff !important; }
+.cs-b.cold { opacity: .75; }
+
+/* ---------- filter button + side panel ---------- */
+.cs-fab {
+  position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 2100;
+  padding: 10px 18px; border: 0; border-radius: 22px; background: #7c3aed; color: #fff;
+  font: 600 14px Roboto, Arial, sans-serif; cursor: pointer; box-shadow: 0 8px 24px rgba(0,0,0,.3);
+}
+.cs-fab:hover { background: #6d28d9; }
+.cs-panel {
+  position: fixed; top: 56px; right: 0; bottom: 0; z-index: 2200; width: 420px; max-width: 100vw;
+  display: flex; flex-direction: column; border-left: 1px solid var(--cs-line); box-shadow: -12px 0 40px rgba(0,0,0,.25);
+}
+.cs-panel-head { display: flex; align-items: center; gap: 8px; padding: 14px 16px; border-bottom: 1px solid var(--cs-line); font-size: 15px; }
+.cs-filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--cs-line); }
+.cs-f { display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; color: var(--cs-mut); }
+.cs-f select, .cs-f input, .cs-f textarea {
+  padding: 7px 8px; border: 1px solid var(--cs-line); border-radius: 8px; background: var(--cs-soft); color: var(--cs-fg); font: 13px Roboto, Arial, sans-serif; outline: none;
+}
+.cs-f select option { background: var(--cs-bg); color: var(--cs-fg); }
+.cs-f textarea { resize: vertical; }
+.cs-f :focus { border-color: #7c3aed; }
+.cs-panel-info { padding: 10px 16px; color: var(--cs-mut); font-size: 12px; }
+.cs-results { flex: 1; overflow-y: auto; padding: 0 8px 8px; }
+.cs-res { display: flex; gap: 10px; padding: 8px; border-radius: 10px; color: inherit; text-decoration: none; }
+.cs-res:hover { background: var(--cs-soft); }
+.cs-res-th { position: relative; width: 136px; aspect-ratio: 16/9; flex-shrink: 0; border-radius: 8px; background: var(--cs-soft) center/cover; }
+.cs-res-x { position: absolute; left: 4px; bottom: 4px; padding: 1px 5px; border-radius: 4px; background: rgba(0,0,0,.8); color: #fff; font: 700 11px Roboto, Arial, sans-serif; }
+.cs-res-x.hot { background: #16a34a; }
+.cs-res-meta { min-width: 0; }
+.cs-res-t { font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.cs-res-s { color: var(--cs-mut); font-size: 12px; }
+.cs-more { margin: 8px 16px 14px; padding: 9px; border: 1px solid var(--cs-line); border-radius: 10px; background: var(--cs-soft); color: inherit; font: 500 13px Roboto, Arial, sans-serif; cursor: pointer; }
+.cs-more:disabled { opacity: .6; cursor: default; }
+
+/* ---------- hover preview ---------- */
+.cs-hover {
+  position: absolute; z-index: 2300; width: 340px; padding: 14px; box-sizing: border-box;
+  border: 1px solid var(--cs-line); border-radius: 14px; box-shadow: 0 16px 48px rgba(0,0,0,.3);
+}
+.cs-hover-head { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+.cs-hover-head b { font-size: 15px; }
+.cs-hover-av { width: 42px; height: 42px; border-radius: 50%; background: var(--cs-soft) center/cover; flex-shrink: 0; }
+.cs-hover-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
+.cs-hover-stats > div { padding: 6px 8px; border-radius: 8px; background: var(--cs-soft); display: flex; flex-direction: column; }
+.cs-hover-stats span { font-size: 10.5px; color: var(--cs-mut); }
+.cs-hover-stats b { font-size: 13px; }
+.cs-hover-vids { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cs-hover-vid { color: inherit; text-decoration: none; font-size: 11.5px; }
+.cs-hover-vid .cs-res-th { width: 100%; margin-bottom: 4px; }
+.cs-hover-actions { display: flex; justify-content: space-between; margin-top: 10px; }
+.cs-hover .cs-label { margin: 0 0 6px; }
+
+/* ---------- Shorts box ---------- */
+.cs-shortsbox {
+  position: fixed; top: 72px; right: 16px; z-index: 2100; width: 250px; padding: 12px 14px; box-sizing: border-box;
+  border: 1px solid var(--cs-line); border-radius: 14px; box-shadow: 0 12px 36px rgba(0,0,0,.3);
+}
+.cs-sb-title { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 14px; margin-bottom: 8px; }
+.cs-sb-title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cs-sb-row { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--cs-line); }
+.cs-sb-row:last-child { border-bottom: 0; }
+.cs-sb-row span { color: var(--cs-mut); }
+.cs-sb-row b { text-align: right; }
+.cs-sb-row.hot b { color: #16a34a; }
+.cs-sb-loading { color: var(--cs-mut); }
+
+/* ---------- video page tools ---------- */
+.cs-vtools { margin: 8px 0 4px; }
+.cs-vt-info { font: 13px Roboto, Arial, sans-serif; color: var(--yt-spec-text-secondary, #606060); margin-bottom: 6px; }
+.cs-vt-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.cs-vt-btn {
+  height: 30px; padding: 0 12px; border: 0; border-radius: 15px; cursor: pointer;
+  background: rgba(124, 58, 237, 0.12); color: #6d28d9; font: 500 13px Roboto, Arial, sans-serif;
+}
+html[dark] .cs-vt-btn { background: rgba(139, 92, 246, 0.2); color: #ddd6fe; }
+.cs-vt-btn:hover { background: rgba(124, 58, 237, 0.24); }
+.cs-vt-btn:disabled { opacity: .5; cursor: default; }
+.cs-row-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 10px; }
+.cs-btn-s { padding: 6px 12px; border: 1px solid var(--cs-line); border-radius: 8px; background: var(--cs-soft); color: inherit; font: 500 12.5px Roboto, Arial, sans-serif; cursor: pointer; }
+.cs-btn-p { padding: 10px; border: 0; border-radius: 10px; background: #7c3aed; color: #fff; font: 600 14px Roboto, Arial, sans-serif; cursor: pointer; }
+.cs-btn-p:disabled { opacity: .6; }
+.cs-transcript { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.cs-tr-list { flex: 1; overflow-y: auto; padding: 0 16px 16px; }
+.cs-tr-seg { display: flex; gap: 10px; padding: 4px 0; }
+.cs-tr-t { color: #7c3aed; font-variant-numeric: tabular-nums; min-width: 42px; }
+.cs-form { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; overflow-y: auto; }
+.cs-two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cs-two[hidden] { display: none; }
+.cs-simv { display: flex; flex-direction: column; min-height: 0; flex: 1; }

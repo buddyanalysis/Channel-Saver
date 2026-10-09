@@ -17,12 +17,18 @@ Set-Location $root
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw "Version must look like 1.3.0" }
 $repo = 'buddyanalysis/Channel-Saver'
 $download = "https://github.com/$repo/releases/latest/download/channel-saver.zip"
-$files = 'manifest.json', 'background.js', 'content.js', 'content.css', 'dashboard.html', 'dashboard.css', 'dashboard.js', 'theme.js', 'INSTALL.txt', 'lib', 'icons'
+# Everything the extension loads: top-level .js/.css/.html/.json (except version.json), INSTALL.txt, lib, icons.
+$files = @(Get-ChildItem -File | Where-Object { $_.Extension -in '.js', '.css', '.html', '.json' -and $_.Name -ne 'version.json' } | ForEach-Object Name) + 'INSTALL.txt', 'lib', 'icons'
 
 # 1. manifest version (keeps the file's formatting otherwise)
 $manifest = Get-Content manifest.json -Raw
 $manifest = $manifest -replace '"version":\s*"[^"]+"', "`"version`": `"$Version`""
 [IO.File]::WriteAllText((Join-Path $root 'manifest.json'), $manifest)
+# The dashboard compares its own build number with the running manifest to
+# spot an extension that wasn't reloaded after an update — keep them equal.
+$dash = Get-Content dashboard.js -Raw
+$dash = $dash -replace "const BUILD = '[^']+';", "const BUILD = '$Version';"
+[IO.File]::WriteAllText((Join-Path $root 'dashboard.js'), $dash)
 
 # 2. ZIP with a top-level channel-saver folder
 $stage = Join-Path $env:TEMP "cs-release\channel-saver"

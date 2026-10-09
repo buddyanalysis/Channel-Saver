@@ -108,3 +108,6 @@ html:not([dark]) .cs-link { color: #6d28d9; }
 .cs-new { padding: 10px 12px 12px; }
 .cs-busy { padding: 0 16px 12px; }
 .cs-busy[hidden] { display: none; }
+/* Dark mode: secondary text in the Save menu stays readable. */
+html[dark] .cs-sub, html[dark] .cs-empty, html[dark] .cs-label, html[dark] .cs-busy { opacity: .9; }
+html[dark] .cs-menu { color: #fff; }

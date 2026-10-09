@@ -6,6 +6,31 @@ import { schedule, uploadStats, fmtWhen, fmtHour, WEEKDAYS } from './lib/track.j
 
 const VERSION = chrome.runtime.getManifest().version;
 
+/**
+ * The version these dashboard files belong to (release.ps1 keeps it in sync
+ * with manifest.json). Chrome serves an unpacked extension's pages straight
+ * from disk but keeps running the old background until the extension is
+ * reloaded, so after copying new files the two can disagree — then saving
+ * silently breaks. When they differ, ask for a one-click restart.
+ */
+const BUILD = '1.4.0';
+
+function showRestart(reason) {
+  if (document.getElementById('restartBanner')) return;
+  const bar = document.createElement('div');
+  bar.id = 'restartBanner';
+  bar.className = 'restart-banner';
+  const msg = document.createElement('span');
+  msg.textContent = reason || 'Channel Saver was updated. Click Restart to finish — your saved channels stay.';
+  const btn = document.createElement('button');
+  btn.textContent = 'Restart now';
+  btn.addEventListener('click', () => chrome.runtime.reload());
+  bar.append(msg, btn);
+  document.body.prepend(bar);
+  document.body.classList.add('has-restart');
+}
+if (VERSION !== BUILD) showRestart();
+
 /* ---------- state ---------- */
 
 let db = { niches: [], channels: {}, settings: {} };
@@ -63,7 +88,11 @@ const send = (type, payload = {}) =>
   new Promise((resolve, reject) => {
     chrome.runtime.sendMessage({ type, ...payload }, (res) => {
       if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
-      if (res?.error) return reject(new Error(res.error));
+      if (res?.error) {
+        // An old background that doesn't know this request = files updated without a reload.
+        if (/^Unknown request/.test(res.error)) showRestart();
+        return reject(new Error(/^Unknown request/.test(res.error) ? 'Click "Restart now" at the top to finish the update.' : res.error));
+      }
       resolve(res?.data);
     });
   });
@@ -110,8 +139,8 @@ function M(ch) {
 
 /* ---------- filtering ---------- */
 
-const SPECIAL_VIEWS = ['all', 'starred', 'unsorted', 'gone', 'competitors', 'similar'];
-const VIEW_TITLES = { all: 'All channels', starred: 'Need to look', unsorted: 'No niche', gone: 'Removed by YouTube', competitors: 'Competitors', similar: 'Similar channels' };
+const SPECIAL_VIEWS = ['all', 'starred', 'unsorted', 'gone', 'competitors', 'similar', 'swipe', 'thumbtest'];
+const VIEW_TITLES = { all: 'All channels', starred: 'Need to look', unsorted: 'No niche', gone: 'Removed by YouTube', competitors: 'Competitors', similar: 'Similar channels', swipe: 'Swipe file', thumbtest: 'Thumbnail tester' };
 
 function inView(ch) {
   if (ui.view === 'gone') return ch.status === 'gone';
@@ -178,10 +207,12 @@ function renderSide() {
       drop: (id) => send('updateChannel', { channelId: id, patch: { starred: true } }).then(() => toast('Added to Need to look')),
     }),
     item('unsorted', 'No niche', live.filter((c) => !c.nicheIds.length).length),
+    item('swipe', '📌 Swipe file', (db.swipe || []).length || ''),
     gone ? item('gone', 'Removed by YouTube', gone) : null,
   );
   set($('discover'),
-    item('similar', '🔍 Similar channels', Object.keys(db.similar || {}).length || ''));
+    item('similar', '🔍 Similar channels', Object.keys(db.similar || {}).length || ''),
+    item('thumbtest', '🖼 Thumbnail tester', ''));
   set($('watch'),
     item('competitors', '⚔ Competitors', live.filter((c) => c.competitor).length, {
       drop: (id) => {
@@ -379,14 +410,16 @@ function render() {
   const niche = nicheById(ui.view);
   $('viewTitle').textContent = niche ? niche.title
     : VIEW_TITLES[ui.view];
-  const listView = ui.view !== 'similar';
+  const listView = !['similar', 'swipe', 'thumbtest'].includes(ui.view);
   document.querySelector('.toolbar').hidden = !listView;
   $('search').hidden = !listView;
   $('viewCount').hidden = !listView;
   if (!listView) {
     $('nicheBar').hidden = true;
     $('nicheOpts').hidden = true;
-    renderSimilar();
+    if (ui.view === 'similar') renderSimilar();
+    else if (ui.view === 'swipe') renderSwipe();
+    else if (ui.view !== 'thumbtest' || !$('list').querySelector('.tt')) renderThumbTest();
     renderUpdate();
     if (ui.openId) renderDrawer();
     return;
@@ -520,6 +553,233 @@ async function toggleCompetitor(ch) {
   const on = !ch.competitor;
   await send('updateChannel', { channelId: ch.channelId, patch: { competitor: on } });
   toast(on ? 'Added to competitors — checked every 6 hours' : 'Removed from competitors');
+}
+
+/* ---------- settings ---------- */
+
+const FEATURE_LABELS = [
+  ['saveButton', '+ Save button next to Subscribe'],
+  ['badges', 'Badges on every video (subscribers, outlier, views per hour)'],
+  ['filter', 'Filter button on Home, Search and Subscriptions'],
+  ['hover', 'Channel preview when hovering a channel name'],
+  ['shorts', 'Stats box while watching Shorts'],
+  ['videoTools', 'Tools under videos (thumbnail, frame, transcript, swipe file, similar videos)'],
+  ['similarButton', '🔍 Similar button on channel pages'],
+];
+
+function settingsModal() {
+  const feats = { saveButton: true, badges: true, filter: true, hover: true, shorts: true, videoTools: true, similarButton: true, ...(db.settings.features || {}) };
+  const boxes = FEATURE_LABELS.map(([k, label]) => {
+    const cb = h('input', { type: 'checkbox' });
+    cb.checked = feats[k] !== false;
+    cb.dataset.k = k;
+    return h('label.set-row', cb, h('span', label));
+  });
+  const auto = h('input', { type: 'checkbox' });
+  auto.checked = db.settings.autoRefresh !== false;
+  const notify = h('input', { type: 'checkbox' });
+  notify.checked = db.settings.notify !== false;
+  openModal(
+    h('h3', 'Settings'),
+    h('p', 'Turn off anything you don’t use. Changes apply on YouTube right away.'),
+    h('div.set-group', h('div.set-h', 'On YouTube'), boxes),
+    h('div.set-group', h('div.set-h', 'Background'),
+      h('label.set-row', auto, h('span', 'Refresh saved channels daily (growth tracking)')),
+      h('label.set-row', notify, h('span', 'Notify me when a competitor uploads'))),
+    h('div.actions',
+      h('button.btn', { onclick: closeModal }, 'Cancel'),
+      h('button.btn.primary', { onclick: async () => {
+        const features = Object.fromEntries(boxes.map((b) => { const cb = b.querySelector('input'); return [cb.dataset.k, cb.checked]; }));
+        await send('saveSettings', { patch: { features, autoRefresh: auto.checked, notify: notify.checked } });
+        closeModal();
+        toast('Settings saved');
+      } }, 'Save')),
+  );
+}
+
+/* ---------- swipe file ---------- */
+
+const SWIPE_TYPES = { video: 'Video', part: 'Part', thumbnail: 'Thumbnail', channel: 'Channel' };
+
+function swipeLink(it) {
+  if (it.type === 'channel') return `https://www.youtube.com/channel/${it.channelId}`;
+  return `https://www.youtube.com/watch?v=${it.videoId}${it.type === 'part' && it.start != null ? `&t=${it.start}s` : ''}`;
+}
+
+function editSwipe(it) {
+  const note = h('textarea', { rows: 4 });
+  note.value = it.note || '';
+  const tags = h('input.input', { placeholder: 'Tags, comma separated' });
+  tags.value = (it.tags || []).join(', ');
+  const niche = h('select.input', h('option', { value: '' }, 'No niche'), db.niches.map((n) => h('option', { value: n.id }, n.title)));
+  niche.value = it.nicheIds?.[0] || '';
+  openModal(
+    h('h3', 'Edit swipe'),
+    h('p', it.title),
+    h('label.field', 'Note', note),
+    h('label.field', 'Tags', tags),
+    h('label.field', 'Niche', niche),
+    h('div.actions',
+      h('button.btn', { onclick: closeModal }, 'Cancel'),
+      h('button.btn.primary', { onclick: async () => {
+        await send('updateSwipe', { id: it.id, patch: { note: note.value, tags: tags.value.split(',').map((t) => t.trim()).filter(Boolean), nicheIds: niche.value ? [niche.value] : [] } });
+        closeModal();
+      } }, 'Save')),
+  );
+}
+
+function renderSwipe() {
+  const items = db.swipe || [];
+  const q = (ui.swipeQ || '').toLowerCase();
+  let list = items;
+  if (ui.swipeType) list = list.filter((it) => it.type === ui.swipeType);
+  if (ui.swipeNiche) list = list.filter((it) => (it.nicheIds || []).includes(ui.swipeNiche));
+  if (q) list = list.filter((it) => [it.title, it.channelName, it.note, ...(it.tags || [])].join(' ').toLowerCase().includes(q));
+  const tagCounts = {};
+  for (const it of items) for (const t of it.tags || []) tagCounts[t] = (tagCounts[t] || 0) + 1;
+
+  const search = h('input.input', { id: 'swipeQ', placeholder: 'Search titles, notes, tags…' });
+  search.value = ui.swipeQ || '';
+  search.addEventListener('input', () => {
+    ui.swipeQ = search.value;
+    renderSwipe();
+    const s = document.getElementById('swipeQ');
+    s.focus();
+    s.setSelectionRange(s.value.length, s.value.length);
+  });
+  const type = h('select.input', h('option', { value: '' }, 'All types'), Object.entries(SWIPE_TYPES).map(([v, t]) => h('option', { value: v }, t)));
+  type.value = ui.swipeType || '';
+  type.addEventListener('change', () => { ui.swipeType = type.value; renderSwipe(); });
+  const niche = h('select.input', h('option', { value: '' }, 'All niches'), db.niches.map((n) => h('option', { value: n.id }, n.title)));
+  niche.value = ui.swipeNiche || '';
+  niche.addEventListener('change', () => { ui.swipeNiche = niche.value; renderSwipe(); });
+
+  const head = h('section.sw-head',
+    h('p.sim-intro', 'Videos, parts of videos and thumbnails you saved with 📌 Swipe file under any YouTube video. Search, filter by type, niche or tag.'),
+    h('div.sw-form', search, type, niche),
+    Object.keys(tagCounts).length ? h('div.chips', { style: { padding: '10px 0 0' } }, Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 20).map(([t, n]) =>
+      h('button.chip' + (ui.swipeQ === t ? '.accent' : ''), { onclick: () => { ui.swipeQ = ui.swipeQ === t ? '' : t; renderSwipe(); } }, `#${t} ${n}`))) : null);
+
+  if (!items.length) {
+    set($('list'), head, h('div.empty', h('h2', 'Your swipe file is empty'), h('p', 'Open any YouTube video and click 📌 Swipe file under the title to save the video, a part of it (great hook, intro…) or its thumbnail.')));
+    return;
+  }
+  set($('list'), head, list.length ? h('div.sw-grid', list.map((it) =>
+    h('article.sw-card',
+      h('a.thumb.sw-thumb', { href: swipeLink(it), target: '_blank', rel: 'noopener', style: { backgroundImage: it.videoId ? `url("https://i.ytimg.com/vi/${it.videoId}/mqdefault.jpg")` : null } },
+        h('span.sw-type', SWIPE_TYPES[it.type] || it.type),
+        it.type === 'part' && it.start != null ? h('span.dur', `${fmtDuration(it.start) || '0:00'}–${fmtDuration(it.end)}`) : it.duration ? h('span.dur', fmtDuration(it.duration)) : null),
+      h('div.sw-body',
+        h('div.sw-title', it.title || '(untitled)'),
+        h('div.vm', [it.channelName, it.views ? `${fmtNum(it.views)} views` : '', it.published ? new Date(it.published).toLocaleDateString() : ''].filter(Boolean).join(' · ')),
+        it.note ? h('div.sw-note', it.note) : null,
+        h('div.chips', { style: { padding: '6px 0 0' } },
+          (it.nicheIds || []).map((id) => nicheById(id)).filter(Boolean).map((n) => h('span.chip.niche', { '--c': n.color }, n.title)),
+          (it.tags || []).map((t) => h('span.chip', `#${t}`)))),
+      h('div.sw-actions',
+        h('span.vm', `Saved ${fmtAge((Date.now() - it.addedAt) / 86400000)}`),
+        iconBtn('✎', 'Edit note, tags, niche', () => editSwipe(it)),
+        iconBtn('⧉', 'Copy link', () => navigator.clipboard.writeText(swipeLink(it)).then(() => toast('Link copied'))),
+        iconBtn('🗑', 'Delete', async () => { if (confirm('Delete this swipe?')) await send('deleteSwipe', { id: it.id }); }))))) : h('div.empty', h('p', 'Nothing matches these filters.')));
+}
+
+/* ---------- thumbnail tester ---------- */
+
+const tt = { image: null, title: '', channel: 'Your channel', source: 'search', query: '', videos: [], mobile: false, position: 'first', mark: false, seed: 0 };
+
+function ttTile(v, mine) {
+  return h('div.tt-tile' + (mine && tt.mark ? '.mine' : ''),
+    h('div.tt-thumb', { style: { backgroundImage: `url("${mine ? tt.image : `https://i.ytimg.com/vi/${v.id}/mqdefault.jpg`}")` } },
+      v.duration ? h('span.dur', fmtDuration(v.duration)) : null),
+    h('div.tt-meta',
+      h('div.tt-av', { style: v.avatar ? { backgroundImage: `url("${v.avatar}")` } : null }),
+      h('div',
+        h('div.tt-title', v.title),
+        h('div.tt-sub', v.channelName),
+        h('div.tt-sub', [v.views != null ? `${fmtNum(v.views)} views` : '', v.ageText || ''].filter(Boolean).join(' • ')))));
+}
+
+async function ttLoad(btn) {
+  btn.disabled = true;
+  try {
+    if (tt.source === 'search') {
+      if (!tt.query.trim()) throw new Error('Type a search term first');
+      tt.videos = (await send('searchVideos', { query: tt.query })).map((v) => ({ ...v, avatar: v.channelAvatar }));
+    } else {
+      const chans = Object.values(db.channels).filter((c) => (tt.source === 'competitors' ? c.competitor : tt.source === c.channelId));
+      if (!chans.length) throw new Error(tt.source === 'competitors' ? 'Add some competitors first' : 'Pick a channel');
+      tt.videos = chans.flatMap((c) => (c.videos || []).slice(0, 12).map((v) => ({ ...v, channelName: c.title, avatar: c.avatar, ageText: fmtAge(v.ageDays) })))
+        .sort(() => Math.random() - 0.5);
+    }
+    tt.seed = Math.random();
+    renderThumbTest(true);
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderThumbTest(force) {
+  const list = $('list');
+  if (!force && list.querySelector('.tt')) return;
+  const file = h('input', { type: 'file', accept: 'image/*' });
+  file.addEventListener('change', () => {
+    const f = file.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => { tt.image = r.result; renderThumbTest(true); };
+    r.readAsDataURL(f);
+  });
+  const title = h('input.input', { placeholder: 'Your video title' });
+  title.value = tt.title;
+  title.addEventListener('input', () => { tt.title = title.value; paintGrid(); });
+  const channel = h('input.input', { placeholder: 'Your channel name' });
+  channel.value = tt.channel;
+  channel.addEventListener('input', () => { tt.channel = channel.value; paintGrid(); });
+  const source = h('select.input',
+    h('option', { value: 'search' }, 'Against a YouTube search'),
+    h('option', { value: 'competitors' }, 'Against my competitors'),
+    Object.values(db.channels).sort((a, b) => a.title.localeCompare(b.title)).map((c) => h('option', { value: c.channelId }, `Against ${c.title}`)));
+  source.value = tt.source;
+  const query = h('input.input', { placeholder: 'Search term, e.g. "history of inventions"' });
+  query.value = tt.query;
+  query.hidden = tt.source !== 'search';
+  source.addEventListener('change', () => { tt.source = source.value; query.hidden = tt.source !== 'search'; });
+  query.addEventListener('input', () => { tt.query = query.value; });
+  const load = h('button.btn.primary', { onclick: (e) => ttLoad(e.currentTarget) }, 'Load videos');
+  query.addEventListener('keydown', (e) => e.key === 'Enter' && load.click());
+
+  const toggle = (label, key, on, off) => h('button.btn' + (tt[key] ? '.primary' : ''), { onclick: () => { tt[key] = !tt[key]; renderThumbTest(true); } }, tt[key] ? on : off);
+  const grid = h('div.tt-grid' + (tt.mobile ? '.mobile' : ''));
+
+  function paintGrid() {
+    if (!tt.videos.length) {
+      set(grid, h('div.empty', h('p', 'Upload your thumbnail, write the title, then load videos to compare against.')));
+      return;
+    }
+    const n = Math.min(tt.videos.length, tt.mobile ? 8 : 16);
+    const pos = tt.position === 'first' ? 0 : Math.floor(tt.seed * n);
+    const tiles = tt.videos.slice(0, n).map((v) => ttTile(v, false));
+    if (tt.image) tiles.splice(pos, 0, ttTile({ title: tt.title || 'Your title here', channelName: tt.channel, views: null, ageText: 'just now', avatar: null }, true));
+    set(grid, tiles);
+  }
+  paintGrid();
+
+  set(list, h('section.tt',
+    h('p.sim-intro', 'See if your thumbnail and title stand out next to the videos you compete with. Nothing is uploaded anywhere — it all stays in this page.'),
+    h('div.tt-form',
+      h('label.field', 'Thumbnail', file),
+      h('label.field', 'Title', title),
+      h('label.field', 'Channel', channel),
+      h('label.field', 'Compare', source, query),
+      h('div.tt-buttons', load)),
+    h('div.tt-bar',
+      toggle('view', 'mobile', '📱 Mobile view', '🖥 Desktop view'),
+      h('button.btn', { onclick: () => { tt.position = tt.position === 'first' ? 'random' : 'first'; tt.seed = Math.random(); renderThumbTest(true); } }, tt.position === 'first' ? 'Position: first' : 'Position: random ⟳'),
+      toggle('mark', 'mark', 'Highlight mine: on', 'Highlight mine: off'),
+      tt.image ? h('span.vm', 'Your thumbnail is in the grid') : h('span.vm', 'No thumbnail uploaded yet')),
+    grid));
 }
 
 /* ---------- similar channels ---------- */
@@ -752,6 +1012,7 @@ async function checkUpdates() {
   try {
     const r = await send('checkUpdate');
     if (!r.configured) toast(`You have version ${VERSION}. Automatic update checks start once an update link is set up.`);
+    else if (r.unpublished) toast(`You have version ${VERSION}. No newer version has been published yet.`);
     else if (r.update) toast(`Version ${r.update.version} is available`);
     else toast(`You have the latest version (${VERSION})`);
   } catch (e) {
@@ -1189,6 +1450,7 @@ function bind() {
   $('copyLinks').onclick = () => copyLinks(visibleChannels());
   $('exportCsv').onclick = exportCsv;
   $('versionBtn').onclick = checkUpdates;
+  $('settingsBtn').onclick = settingsModal;
   $('backupBtn').onclick = backup;
   $('importBtn').onclick = () => $('importFile').click();
   $('importFile').onchange = (e) => { if (e.target.files[0]) importFile(e.target.files[0]); e.target.value = ''; };
@@ -1220,8 +1482,8 @@ function fromHash() {
 }
 
 async function loadDb() {
-  const s = await chrome.storage.local.get(['niches', 'channels', 'settings', 'similar']);
-  db = { niches: s.niches || [], channels: s.channels || {}, settings: s.settings || {}, similar: s.similar || {} };
+  const s = await chrome.storage.local.get(['niches', 'channels', 'settings', 'similar', 'swipe']);
+  db = { niches: s.niches || [], channels: s.channels || {}, settings: s.settings || {}, similar: s.similar || {}, swipe: s.swipe || [] };
 }
 
 await loadDb();

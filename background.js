@@ -1,4 +1,5 @@
-import { fetchChannel, fetchFeed, parseInput } from './lib/yt.js';
+import { fetchChannel, fetchFeed, parseInput, videoInfo, searchVideos } from './lib/yt.js';
+import { getLiteMany } from './lib/lite.js';
 import { applyFeed, noteOutlier, fmtWhen } from './lib/track.js';
 import { computeMetrics } from './lib/metrics.js';
 import { findSimilar } from './lib/discover.js';
@@ -242,6 +243,7 @@ const HANDLERS = {
     mutate((s) => {
       s.niches = s.niches.filter((n) => n.id !== id);
       for (const c of Object.values(s.channels)) c.nicheIds = c.nicheIds.filter((x) => x !== id);
+      for (const it of s.swipe) it.nicheIds = (it.nicheIds || []).filter((x) => x !== id);
       return { ok: true };
     }),
 
@@ -272,11 +274,76 @@ const HANDLERS = {
 
   saveSettings: ({ patch }) =>
     mutate((s) => {
+      if (patch.features) patch = { ...patch, features: { ...s.settings.features, ...patch.features } };
       Object.assign(s.settings, patch);
       return { settings: s.settings };
     }),
 
   checkUpdate: () => checkUpdate(),
+
+  /* ---- on-page tools ---- */
+  channelLite: ({ paths }) => getLiteMany(paths || []),
+  videoInfo: ({ videoId }) => videoInfo(videoId),
+  searchVideos: async ({ query, exclude }) => {
+    const list = await searchVideos(query);
+    return exclude ? list.filter((v) => v.channelId !== exclude) : list;
+  },
+  // Thumbnails as data URLs, so pages can download or copy them without CORS trouble.
+  fetchImage: async ({ urls }) => {
+    for (const url of urls || []) {
+      try {
+        const r = await fetch(url, { credentials: 'omit' });
+        if (!r.ok) continue;
+        const blob = await r.blob();
+        // YouTube answers a missing maxres thumbnail with a 120×90 grey image.
+        if (blob.size < 2000) continue;
+        const buf = new Uint8Array(await blob.arrayBuffer());
+        let bin = '';
+        for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+        return { url, dataUrl: `data:${blob.type || 'image/jpeg'};base64,${btoa(bin)}` };
+      } catch {
+        /* try the next size */
+      }
+    }
+    throw new Error('Thumbnail not available');
+  },
+
+  /* ---- swipe file ---- */
+  saveSwipe: ({ item }) =>
+    mutate((s) => {
+      if (!item?.videoId && !item?.channelId) throw new Error('Nothing to save');
+      const rec = {
+        id: uid(),
+        type: item.type || 'video', // video | part | thumbnail | channel
+        videoId: item.videoId || '',
+        channelId: item.channelId || '',
+        title: String(item.title || '').slice(0, 300),
+        channelName: String(item.channelName || '').slice(0, 120),
+        views: Number(item.views) || 0,
+        published: item.published || null,
+        duration: Number(item.duration) || 0,
+        start: item.start ?? null,
+        end: item.end ?? null,
+        note: String(item.note || '').slice(0, 2000),
+        tags: (item.tags || []).map((t) => String(t).trim().slice(0, 40)).filter(Boolean).slice(0, 12),
+        nicheIds: item.nicheIds || [],
+        addedAt: Date.now(),
+      };
+      s.swipe.unshift(rec);
+      return { item: rec };
+    }),
+  updateSwipe: ({ id, patch }) =>
+    mutate((s) => {
+      const it = s.swipe.find((x) => x.id === id);
+      if (!it) throw new Error('Item not found');
+      for (const k of ['note', 'tags', 'nicheIds', 'start', 'end']) if (k in patch) it[k] = patch[k];
+      return { item: it };
+    }),
+  deleteSwipe: ({ id }) =>
+    mutate((s) => {
+      s.swipe = s.swipe.filter((x) => x.id !== id);
+      return { ok: true };
+    }),
   restart: async () => {
     setTimeout(() => chrome.runtime.reload(), 100);
     return { ok: true };
@@ -444,6 +511,8 @@ const PER_TICK = 12;
 async function checkUpdate() {
   if (!UPDATE_URL) return { configured: false };
   const r = await fetch(`${UPDATE_URL}${UPDATE_URL.includes('?') ? '&' : '?'}t=${Date.now()}`, { cache: 'no-store' });
+  // 404 = nothing published at the update link yet; not an error for the user.
+  if (r.status === 404) return { configured: true, unpublished: true, current: chrome.runtime.getManifest().version, update: null };
   if (!r.ok) throw new Error(`Update check failed (${r.status})`);
   const info = await r.json();
   const current = chrome.runtime.getManifest().version;

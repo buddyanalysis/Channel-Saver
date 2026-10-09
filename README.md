@@ -38,6 +38,13 @@ Aap ka saara data (channels, niches, notes) save rehta hai.
   desktop notification
 - **Similar channels:** kisi bhi channel jaise doosre channels — similarity %, avg views/video,
   days since start, uploads/month, last upload, outliers, top video, ek click mein save
+- **YouTube par:** har video par subscribers / outlier / views-per-hour badge, Filter panel
+  (Home, Search, Subscriptions) with "Load more", channel hover preview, Shorts stats box,
+  video tools (exact upload time, thumbnail download/copy, frame screenshot, transcript,
+  swipe file, similar videos), channel page par Similar button
+- **Swipe file:** videos, video ke hisse aur thumbnails — notes, tags, niches
+- **Thumbnail tester:** apna thumbnail search results ya competitors ke beech dekhein
+- **Settings:** har feature on/off
 - Cards / Table view, din ke hisaab se "Recently added", search, filters
 - Drag & drop: card ko niche, Competitors ya Need to look par chhodein
 - CSV export, backup / import, Dark / Light mode

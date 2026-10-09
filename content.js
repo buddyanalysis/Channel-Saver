@@ -16,7 +16,11 @@
       try {
         chrome.runtime.sendMessage({ type, ...payload }, (res) => {
           if (chrome.runtime.lastError) return reject(new Error('Extension was updated — reload this page.'));
-          if (res?.error) return reject(new Error(res.error));
+          if (res?.error) {
+            // Old background still running after new files were copied in.
+            if (/^Unknown request/.test(res.error)) return reject(new Error('Channel Saver was updated — open its dashboard and click "Restart now".'));
+            return reject(new Error(res.error));
+          }
           resolve(res?.data);
         });
       } catch {
@@ -75,11 +79,45 @@
     if (btn) render(btn);
   }
 
+  const SIM_ATTR = 'data-cs-similar';
+
+  // "🔍 Similar" next to Save on channel pages: opens the dashboard search.
+  function ensureSimilar(ctx) {
+    const existing = document.querySelector(`[${SIM_ATTR}]`);
+    const onChannel = /^\/(@|channel\/|c\/|user\/)/.test(location.pathname);
+    if (!ctx || !onChannel || window.CS?.features.similarButton === false) return existing?.remove();
+    const save = document.querySelector(`[${BTN_ATTR}]`);
+    if (existing && (save ? existing.previousElementSibling === save : existing.isConnected)) return;
+    existing?.remove();
+    const b = document.createElement('button');
+    b.setAttribute(SIM_ATTR, '');
+    b.type = 'button';
+    b.className = 'cs-btn cs-btn-ghost';
+    b.title = 'Find channels similar to this one';
+    b.textContent = '🔍 Similar';
+    b.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      send('openDashboard', { hash: `#similar=${encodeURIComponent(currentUrl || ctx.url)}` }).catch((err) => toast(err.message, true));
+    });
+    if (save) save.insertAdjacentElement('afterend', b);
+    else if (ctx.inside) ctx.anchor.appendChild(b);
+    else ctx.anchor.insertAdjacentElement('afterend', b);
+  }
+
   function ensureButton() {
     const ctx = context();
     const existing = document.querySelector(`[${BTN_ATTR}]`);
     if (!ctx) {
       if (existing && !visible(existing)) existing.remove();
+      ensureSimilar(null);
+      return;
+    }
+    // Save button switched off in Settings.
+    if (window.CS?.features.saveButton === false) {
+      existing?.remove();
+      closeMenu();
+      ensureSimilar(ctx);
       return;
     }
     if (ctx.url !== currentUrl) {
@@ -89,7 +127,7 @@
       refreshState(ctx.url);
     }
     // Already in the right place.
-    if (existing && (ctx.inside ? existing.parentElement === ctx.anchor : existing.previousElementSibling === ctx.anchor)) return;
+    if (existing && (ctx.inside ? existing.parentElement === ctx.anchor : existing.previousElementSibling === ctx.anchor)) return ensureSimilar(ctx);
     existing?.remove();
 
     const btn = document.createElement('button');
@@ -105,6 +143,7 @@
     render(btn);
     if (ctx.inside) ctx.anchor.appendChild(btn);
     else ctx.anchor.insertAdjacentElement('afterend', btn);
+    ensureSimilar(ctx);
   }
 
   /* ---------- menu ---------- */
@@ -288,5 +327,7 @@
   chrome.storage.onChanged.addListener((changes) => {
     if (currentUrl && (changes.channels || changes.niches)) refreshState(currentUrl).then(paintMenu);
   });
+  // Settings toggles apply right away.
+  window.CS?.onFeatures?.(schedule);
   schedule();
 })();
