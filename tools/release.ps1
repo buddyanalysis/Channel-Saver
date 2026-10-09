@@ -16,7 +16,9 @@ Set-Location $root
 
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw "Version must look like 1.3.0" }
 $repo = 'buddyanalysis/Channel-Saver'
-$download = "https://github.com/$repo/releases/latest/download/channel-saver.zip"
+# The update banner downloads a file named after the version (channel-saver-1.9.2.zip);
+# channel-saver.zip stays on every release too, so ".../releases/latest/download/channel-saver.zip" always works.
+$download = "https://github.com/$repo/releases/download/v$Version/channel-saver-$Version.zip"
 # Everything the extension loads: top-level .js/.css/.html/.json (except version.json), INSTALL.txt, lib, icons.
 $files = @(Get-ChildItem -File | Where-Object { $_.Extension -in '.js', '.css', '.html', '.json' -and $_.Name -ne 'version.json' } | ForEach-Object Name) + 'INSTALL.txt', 'lib', 'icons'
 
@@ -39,12 +41,14 @@ New-Item -ItemType Directory -Force dist | Out-Null
 $zip = Join-Path $root 'dist\channel-saver.zip'
 if (Test-Path $zip) { Remove-Item $zip -Force }
 Compress-Archive -Path $stage -DestinationPath $zip
+$zipVersioned = Join-Path $root "distchannel-saver-$Version.zip"
+Copy-Item $zip $zipVersioned -Force
 
 # 3. code + release
 git add -A -- . ':!dist' ':!version.json'
 git commit -m "Release $Version" -m $Notes
 git push
-gh release create "v$Version" $zip --repo $repo --title "Channel Saver $Version" --notes $(if ($Notes) { $Notes } else { "Channel Saver $Version" })
+gh release create "v$Version" $zipVersioned $zip --repo $repo --title "Channel Saver $Version" --notes $(if ($Notes) { $Notes } else { "Channel Saver $Version" })
 
 # 4. announce it to installed copies
 $info = [ordered]@{ version = $Version; download = $download; notes = $Notes }
