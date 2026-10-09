@@ -1,0 +1,61 @@
+CHANNEL SAVER — Install guide (2 minute)
+=========================================
+
+Kuch aur install nahi karna. Na Node.js, na koi program. Sirf Google Chrome chahiye.
+
+
+STEP 1: ZIP kholein
+-------------------
+1. channel-saver.zip par right-click karein, phir "Extract All..." dabayein.
+2. "Browse..." mein Documents chunein, phir "Extract" dabayein.
+3. Documents mein "channel-saver" folder ban jayega.
+   Is folder ko delete ya move na karein. Extension isi se chalti hai.
+
+
+STEP 2: Chrome mein lagayein
+----------------------------
+1. Chrome ke upar address bar mein likhein:  chrome://extensions  aur Enter dabayein.
+2. Upar right side par "Developer mode" on karein.
+3. Upar left side par "Load unpacked" dabayein.
+4. Documents > channel-saver folder chunein aur "Select Folder" dabayein.
+5. Upar puzzle icon par click karein, phir "Channel Saver" ke saath pin dabayein.
+
+Ho gaya!
+
+
+ISTEMAL KAISE KAREIN
+--------------------
+- YouTube par koi bhi channel ya video kholein.
+  Subscribe ke saath purple "+ Save" button nazar aayega.
+- Button dabayein. Upar wale box mein niche dhoondhein aur us par click karein,
+  ya neeche "New niche" mein naya naam likh kar Enter dabayein.
+- Upar Chrome mein Channel Saver ke icon par click karein. Aap ki poori library khul jayegi:
+  kamai ka andaza, growth, outlier videos, score, notes.
+- Bohat saare channels ek saath? Dashboard mein "+ Add channels" dabayein aur links paste karein,
+  har line mein ek link.
+- Dark/Light mode: dashboard mein upar ◐ button.
+- Competitors: kisi bhi card ko pakad kar (drag) left menu mein "⚔ Competitors" par chhod dein.
+  Competitors har 30 minute check hote hain (jab Chrome khula ho). Wahan dikhega:
+  har video ka exact upload time, woh kis din aur kis waqt upload karte hain, agli video
+  kab aayegi, pehle 24 ghante ke views, title changes. Nayi upload par notification aati hai.
+- Card ko kisi niche ya "🔖 Need to look" par drag karke bhi daal sakte hain.
+
+
+AGAR MASLA HO
+-------------
+- Save button nazar nahi aa raha: YouTube page refresh karein (F5).
+- "Extension was updated — reload this page": YouTube page refresh karein.
+- Channel ka data purana hai: card par ⟳ dabayein. Waise bhi rozana khud refresh hota hai.
+- Naya version aaya: dashboard mein upar "Update available" likha aayega.
+  "Download" dabayein, ZIP ko usi channel-saver folder par extract karein (files replace karein),
+  phir "Restart" dabayein. Aap ka saara data save rehta hai.
+- Apna data mehfooz rakhein: dashboard mein "Backup" dabayein. Is se ek file download hogi.
+  Naye computer par "Import backup" se wapas le aayein.
+
+
+ZAROORI BAATEIN
+---------------
+- Aap ka saara data sirf aap ke Chrome mein rehta hai. Kisi server par nahi jata.
+- Kamai sirf andaza hai (AdSense). Har niche ka RPM aap khud set kar sakte hain
+  (niche ke ⋯ menu mein "RPM & notes").
+- Extension sirf YouTube se public data padhti hai. Aap ka YouTube account use nahi karti.

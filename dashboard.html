@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Channel Saver</title>
+  <link rel="icon" href="icons/icon32.png">
+  <script src="theme.js"></script>
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <aside class="side" id="side">
+    <div class="brand">
+      <img src="icons/icon48.png" alt="" width="28" height="28">
+      <div>
+        <div class="brand-name">Channel Saver</div>
+        <div class="brand-stats" id="stats"></div>
+      </div>
+    </div>
+
+    <nav class="nav" id="nav"></nav>
+
+    <div class="side-label"><span>Watch</span></div>
+    <nav class="nav" id="watch"></nav>
+
+    <div class="side-label">
+      <span>Niches</span>
+      <button class="icon-btn" id="newNicheBtn" title="New niche" aria-label="New niche">+</button>
+    </div>
+    <input class="side-search" id="nicheSearch" placeholder="Find a niche…" autocomplete="off">
+    <nav class="nav niches" id="niches"></nav>
+
+    <div class="side-bottom">
+      <button class="side-action" id="exportCsv">⤓ Export CSV</button>
+      <button class="side-action" id="backupBtn">⤓ Backup</button>
+      <button class="side-action" id="importBtn">⤒ Import backup</button>
+      <label class="side-toggle"><input type="checkbox" id="autoRefresh"> Auto-refresh daily</label>
+      <label class="side-toggle"><input type="checkbox" id="notify"> Notify on competitor uploads</label>
+      <button class="side-action version" id="versionBtn">Check for updates</button>
+      <input type="file" id="importFile" accept="application/json,.json" hidden>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="top">
+      <button class="icon-btn menu-btn" id="menuBtn" aria-label="Menu">☰</button>
+      <div class="top-title">
+        <h1 id="viewTitle">All channels</h1>
+        <span class="count" id="viewCount">0</span>
+        <button class="icon-btn" id="nicheOpts" title="Niche options: rename, RPM, notes, delete" aria-label="Niche options" hidden>⋯</button>
+      </div>
+      <input class="search" id="search" placeholder="Search channels, notes, keywords…" autocomplete="off">
+      <button class="icon-btn theme-btn" id="themeBtn" type="button">◐</button>
+      <button class="btn primary" id="addBtn">+ Add channels</button>
+    </header>
+
+    <section class="update" id="updateBanner" hidden></section>
+
+    <div class="toolbar">
+      <div class="seg" role="group" aria-label="View">
+        <button id="viewCards" class="on">Cards</button>
+        <button id="viewTable">Table</button>
+      </div>
+      <label class="select"><span>Sort</span>
+        <select id="sort">
+          <option value="added">Recently added</option>
+          <option value="score">Opportunity score</option>
+          <option value="revenue">Est. monthly earnings</option>
+          <option value="monthly">Monthly views</option>
+          <option value="subs">Subscribers</option>
+          <option value="growth">Subs growth / day</option>
+          <option value="young">Newest channels</option>
+          <option value="uploads">Uploads per week</option>
+          <option value="outliers">Most outlier videos</option>
+          <option value="vps">Views per subscriber</option>
+        </select>
+      </label>
+      <label class="select"><span>Format</span>
+        <select id="fFormat">
+          <option value="">All</option>
+          <option value="long">Long videos</option>
+          <option value="shorts">Shorts</option>
+        </select>
+      </label>
+      <label class="select"><span>Age</span>
+        <select id="fAge">
+          <option value="">Any</option>
+          <option value="180">Under 6 months</option>
+          <option value="365">Under 1 year</option>
+          <option value="730">Under 2 years</option>
+        </select>
+      </label>
+      <button class="btn ghost" id="copyLinks">Copy links</button>
+    </div>
+
+    <section class="niche-bar" id="nicheBar" hidden></section>
+    <section id="list"></section>
+  </main>
+
+  <div class="drawer-wrap" id="drawerWrap" hidden>
+    <div class="drawer-bg" data-close></div>
+    <aside class="drawer" id="drawer" role="dialog" aria-modal="true"></aside>
+  </div>
+
+  <div class="modal-wrap" id="modalWrap" hidden>
+    <div class="modal-bg" data-close></div>
+    <div class="modal" id="modal" role="dialog" aria-modal="true"></div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <script type="module" src="dashboard.js"></script>
+</body>
+</html>
