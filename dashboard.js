@@ -16,7 +16,7 @@ const VERSION = chrome.runtime.getManifest().version;
  * reloaded, so after copying new files the two can disagree — then saving
  * silently breaks. When they differ, ask for a one-click restart.
  */
-const BUILD = '1.7.0';
+const BUILD = '1.7.1';
 
 function showRestart(reason) {
   if (document.getElementById('restartBanner')) return;
@@ -95,7 +95,8 @@ const send = (type, payload = {}) => (globalThis.CSBusy?.track ?? ((t, p) => p))
       if (res?.error) {
         // An old background that doesn't know this request = files updated without a reload.
         if (/^Unknown request/.test(res.error)) showRestart();
-        return reject(new Error(/^Unknown request/.test(res.error) ? 'Click "Restart now" at the top to finish the update.' : res.error));
+        // Keep the real text ("Unknown request …"): the activation screen shows it with a Restart button.
+        return reject(new Error(/^Unknown request/.test(res.error) ? `${res.error} — Channel Saver needs a restart to finish the update.` : res.error));
       }
       resolve(res?.data);
     });

@@ -15,8 +15,6 @@ const OPEN_REQUESTS = new Set(['activate', 'deactivate', 'licenseStatus', 'check
 const LOCKED = 'Channel Saver is not activated. Open the Channel Saver dashboard and enter your activation key.';
 const LIC_HOUR = 3600000; // (HOUR is declared further down)
 const CHECK_EVERY = 6 * LIC_HOUR;
-// If letrestart.com can't be reached, keep working this long after the last good check.
-const OFFLINE_GRACE = 7 * 24 * LIC_HOUR;
 
 /** This computer's id: made once, kept for good (sent with every key request). */
 async function deviceId() {
@@ -53,11 +51,9 @@ async function license({ force = false } = {}) {
       await chrome.storage.local.set({ license: next });
       return next;
     } catch (e) {
-      // Offline or server trouble: not a verdict on the key. Keep going within the grace period.
-      const tooLong = Date.now() - (lic.lastGood || lic.checkedAt || 0) > OFFLINE_GRACE;
-      const next = tooLong
-        ? { ...lic, ok: false, error: 'Channel Saver could not confirm your key with letrestart.com for 7 days. Connect to the internet and open the dashboard.' }
-        : { ...lic, checkedAt: Date.now() - CHECK_EVERY + LIC_HOUR }; // try again in an hour
+      // Offline or server trouble is never a verdict on the key: an activated key stays
+      // active until the user removes it or the website answers ok:false. Ask again in an hour.
+      const next = { ...lic, checkedAt: Date.now() - CHECK_EVERY + LIC_HOUR };
       await chrome.storage.local.set({ license: next });
       return next;
     } finally {
@@ -543,6 +539,13 @@ async function openDashboard(hash = '') {
 }
 
 chrome.action.onClicked.addListener(() => openDashboard());
+
+// The activation screen restarted the extension to finish an update: open the dashboard again.
+chrome.storage.local.get(['reopenDashboard']).then(({ reopenDashboard }) => {
+  if (!reopenDashboard) return;
+  chrome.storage.local.remove('reopenDashboard');
+  if (Date.now() - reopenDashboard < 60000) openDashboard().catch(() => {});
+});
 
 /* ---------- similar channels ---------- */
 
