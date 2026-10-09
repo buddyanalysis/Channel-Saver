@@ -39,6 +39,9 @@ ISTEMAL KAISE KAREIN
   har video ka exact upload time, woh kis din aur kis waqt upload karte hain, agli video
   kab aayegi, pehle 24 ghante ke views, title changes. Nayi upload par notification aati hai.
 - Card ko kisi niche ya "🔖 Need to look" par drag karke bhi daal sakte hain.
+- Similar channels: left menu mein "🔍 Similar channels" kholein aur kisi bhi channel ka link daalein
+  (ya channel kholein → "🔍 Similar channels"). Ek minute mein milte-julte channels aa jate hain:
+  similarity %, avg views, kitne din purana, monthly uploads, last upload. "+ Save" se seedha save karein.
 
 
 AGAR MASLA HO

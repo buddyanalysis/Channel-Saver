@@ -36,6 +36,8 @@ Aap ka saara data (channels, niches, notes) save rehta hai.
 - **Competitors:** har 30 minute check — exact upload time, upload schedule (din + waqt),
   agli video kab aayegi, pehle 24 ghante ke views, views per hour, likes, title changes,
   desktop notification
+- **Similar channels:** kisi bhi channel jaise doosre channels — similarity %, avg views/video,
+  days since start, uploads/month, last upload, outliers, top video, ek click mein save
 - Cards / Table view, din ke hisaab se "Recently added", search, filters
 - Drag & drop: card ko niche, Competitors ya Need to look par chhodein
 - CSV export, backup / import, Dark / Light mode

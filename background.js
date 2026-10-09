@@ -1,6 +1,7 @@
 import { fetchChannel, fetchFeed, parseInput } from './lib/yt.js';
 import { applyFeed, noteOutlier, fmtWhen } from './lib/track.js';
 import { computeMetrics } from './lib/metrics.js';
+import { findSimilar } from './lib/discover.js';
 import { load, mutate, uid } from './lib/store.js';
 import { UPDATE_URL, isNewer } from './lib/config.js';
 
@@ -195,6 +196,13 @@ const HANDLERS = {
   },
 
   pollCompetitors: () => pollCompetitors({ force: true }),
+  findSimilar: runSimilar,
+  forgetSimilar: async ({ seedId }) => {
+    const { similar = {} } = await chrome.storage.local.get('similar');
+    delete similar[seedId];
+    await chrome.storage.local.set({ similar });
+    return { ok: true };
+  },
 
   deleteChannel: ({ channelId }) =>
     mutate((s) => {
@@ -310,6 +318,70 @@ async function openDashboard(hash = '') {
 }
 
 chrome.action.onClicked.addListener(() => openDashboard());
+
+/* ---------- similar channels ---------- */
+
+/**
+ * Results live in storage.local.similar[seedId] so the dashboard can show
+ * progress live (storage.onChanged) and reopen past searches instantly.
+ * Separate key from the library so a long search never rewrites it.
+ */
+const SIMILAR_TTL = 3 * DAY;
+const running = new Map();
+
+// Writes run one at a time: a late progress write must never undo "done".
+let similarChain = Promise.resolve();
+function saveSimilar(seedId, patch) {
+  similarChain = similarChain.then(() => writeSimilar(seedId, patch)).catch(() => {});
+  return similarChain;
+}
+
+async function writeSimilar(seedId, patch) {
+  const { similar = {} } = await chrome.storage.local.get('similar');
+  similar[seedId] = { ...(similar[seedId] || {}), ...patch };
+  // Keep the 30 most recent searches.
+  const keep = Object.entries(similar).sort((a, b) => (b[1].at || 0) - (a[1].at || 0)).slice(0, 30);
+  await chrome.storage.local.set({ similar: Object.fromEntries(keep) });
+}
+
+async function runSimilar({ input, force = false }) {
+  const st = await load();
+  let seed = st.channels[input] || findSaved(st.channels, input);
+  if (!seed) seed = compact(await fetchChannel(input));
+  const seedId = seed.channelId;
+  if (running.has(seedId)) return running.get(seedId);
+
+  const { similar = {} } = await chrome.storage.local.get('similar');
+  const cached = similar[seedId];
+  if (!force && cached?.status === 'done' && Date.now() - cached.at < SIMILAR_TTL) return { seedId, cached: true };
+
+  const job = (async () => {
+    const info = { channelId: seedId, title: seed.title, handle: seed.handle, avatar: seed.avatar, subs: seed.subs, url: seed.url };
+    await saveSimilar(seedId, { seed: info, status: 'running', stage: 'Starting', done: 0, total: 1, results: cached?.results || [], at: Date.now(), error: '' });
+    let lastWrite = 0;
+    try {
+      const results = await findSimilar(seed, {
+        onProgress: (stage, done, total, partial) => {
+          // Throttle storage writes; the UI only needs a smooth bar.
+          if (Date.now() - lastWrite < 700 && done < total) return;
+          lastWrite = Date.now();
+          saveSimilar(seedId, { stage, done, total, ...(partial.length ? { results: partial.slice(0, 14) } : {}) });
+        },
+      });
+      await saveSimilar(seedId, { status: 'done', stage: 'Done', results, at: Date.now() });
+      return { seedId, count: results.length };
+    } catch (e) {
+      await saveSimilar(seedId, { status: 'error', error: e.message || 'Search failed' });
+      throw e;
+    } finally {
+      running.delete(seedId);
+    }
+  })();
+  running.set(seedId, job);
+  // Answer right away with the id; progress arrives through storage.
+  job.catch(() => {});
+  return { seedId, started: true };
+}
 
 /* ---------- competitor tracking ---------- */
 

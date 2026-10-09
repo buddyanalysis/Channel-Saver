@@ -110,8 +110,8 @@ function M(ch) {
 
 /* ---------- filtering ---------- */
 
-const SPECIAL_VIEWS = ['all', 'starred', 'unsorted', 'gone', 'competitors'];
-const VIEW_TITLES = { all: 'All channels', starred: 'Need to look', unsorted: 'No niche', gone: 'Removed by YouTube', competitors: 'Competitors' };
+const SPECIAL_VIEWS = ['all', 'starred', 'unsorted', 'gone', 'competitors', 'similar'];
+const VIEW_TITLES = { all: 'All channels', starred: 'Need to look', unsorted: 'No niche', gone: 'Removed by YouTube', competitors: 'Competitors', similar: 'Similar channels' };
 
 function inView(ch) {
   if (ui.view === 'gone') return ch.status === 'gone';
@@ -180,6 +180,8 @@ function renderSide() {
     item('unsorted', 'No niche', live.filter((c) => !c.nicheIds.length).length),
     gone ? item('gone', 'Removed by YouTube', gone) : null,
   );
+  set($('discover'),
+    item('similar', '🔍 Similar channels', Object.keys(db.similar || {}).length || ''));
   set($('watch'),
     item('competitors', '⚔ Competitors', live.filter((c) => c.competitor).length, {
       drop: (id) => {
@@ -377,6 +379,18 @@ function render() {
   const niche = nicheById(ui.view);
   $('viewTitle').textContent = niche ? niche.title
     : VIEW_TITLES[ui.view];
+  const listView = ui.view !== 'similar';
+  document.querySelector('.toolbar').hidden = !listView;
+  $('search').hidden = !listView;
+  $('viewCount').hidden = !listView;
+  if (!listView) {
+    $('nicheBar').hidden = true;
+    $('nicheOpts').hidden = true;
+    renderSimilar();
+    renderUpdate();
+    if (ui.openId) renderDrawer();
+    return;
+  }
   const list = visibleChannels();
   $('viewCount').textContent = list.length;
   for (const [id, key] of [['sort', 'sort'], ['fFormat', 'format'], ['fAge', 'age']]) $(id).value = ui[key];
@@ -506,6 +520,114 @@ async function toggleCompetitor(ch) {
   const on = !ch.competitor;
   await send('updateChannel', { channelId: ch.channelId, patch: { competitor: on } });
   toast(on ? 'Added to competitors — checked every 6 hours' : 'Removed from competitors');
+}
+
+/* ---------- similar channels ---------- */
+
+/** Opens the Similar view for a saved channel id or any channel link, starting a search if needed. */
+async function openSimilar(input, force = false) {
+  ui.view = 'similar';
+  saveUi();
+  const known = db.channels[input]?.channelId;
+  if (known) ui.similarSeed = known;
+  render();
+  try {
+    const r = await send('findSimilar', { input, force });
+    ui.similarSeed = r.seedId;
+    render();
+  } catch (e) {
+    toast(e.message, true);
+  }
+}
+
+const savedIds = () => new Set(Object.keys(db.channels));
+
+function similarRow(r, seedRec) {
+  const saved = savedIds().has(r.channelId);
+  const save = async () => {
+    // Same niches as the seed, when the seed is in the library.
+    const nicheId = seedRec?.nicheIds?.[0] || null;
+    try {
+      const res = await send('add', { input: r.url || `https://www.youtube.com/channel/${r.channelId}`, nicheId });
+      for (const id of (seedRec?.nicheIds || []).slice(1)) await send('setNiche', { channelId: res.channel.channelId, nicheId: id, on: true });
+      toast(`Saved ${r.title}${nicheId ? ` to ${nicheById(nicheId)?.title}` : ''}`);
+    } catch (e) {
+      toast(e.message, true);
+    }
+  };
+  return h('tr',
+    h('td', h('div.tch',
+      h('div.avatar', { style: r.avatar ? { backgroundImage: `url("${r.avatar}")` } : null }),
+      h('div', h('div.sim-name', r.title), h('div.vm', [r.handle, r.country].filter(Boolean).join(' · '))))),
+    h('td', h('div.sim-bar', h('span', { style: { width: `${r.similarity}%` } })), h('div.vm', `${r.similarity}% similar${r.sameLanguage ? '' : ' · other language'}`)),
+    h('td.num', fmtNum(r.subs)),
+    h('td.num', fmtNum(r.medianViews)),
+    h('td.num', r.ageDays != null ? r.ageDays.toLocaleString() : '—'),
+    h('td.num', r.uploadsPerMonth != null ? r.uploadsPerMonth : '—'),
+    h('td.num', r.lastUpload != null ? fmtAge(r.lastUpload) : '—'),
+    h('td.num', r.outliers),
+    h('td.top-vid', r.topVideo ? h('a', { href: ytVideo(r.topVideo.id), target: '_blank', rel: 'noopener', title: `${r.topVideo.title} — ${fmtNum(r.topVideo.views)} views` },
+      h('div.thumb', { style: { backgroundImage: `url("${thumb(r.topVideo.id)}")` } }, h('span.dur', fmtNum(r.topVideo.views)))) : '—'),
+    h('td.actions',
+      saved ? h('button.btn.small', { onclick: () => openDrawer(r.channelId) }, '✓ Saved') : h('button.btn.small.primary', { onclick: save }, '+ Save'),
+      h('button.icon-btn', { title: 'Find channels similar to this one', onclick: () => openSimilar(r.url || r.channelId) }, '🔍'),
+      h('button.icon-btn', { title: 'Open on YouTube', onclick: () => window.open(r.url, '_blank', 'noopener') }, '↗')));
+}
+
+function renderSimilar() {
+  const all = db.similar || {};
+  const seeds = Object.values(all).sort((a, b) => (b.at || 0) - (a.at || 0));
+  if (!ui.similarSeed || !all[ui.similarSeed]) ui.similarSeed = seeds[0]?.seed?.channelId || null;
+  const cur = ui.similarSeed ? all[ui.similarSeed] : null;
+
+  const wasTyping = document.activeElement?.id === 'simInput';
+  const input = h('input.input', { id: 'simInput', placeholder: 'Paste a YouTube channel or video link…' });
+  input.value = ui.simDraft || '';
+  input.addEventListener('input', () => { ui.simDraft = input.value; });
+  const find = () => {
+    const v = input.value.trim();
+    if (!v) return;
+    ui.simDraft = '';
+    openSimilar(v);
+  };
+  if (wasTyping) setTimeout(() => { input.focus(); input.setSelectionRange(input.value.length, input.value.length); });
+  input.addEventListener('keydown', (e) => e.key === 'Enter' && find());
+  const pick = h('select.input',
+    h('option', { value: '' }, 'or pick a saved channel…'),
+    Object.values(db.channels).sort((a, b) => a.title.localeCompare(b.title)).map((c) => h('option', { value: c.channelId }, c.title)));
+  pick.addEventListener('change', () => pick.value && openSimilar(pick.value));
+
+  const head = h('section.sim-head',
+    h('p.sim-intro', 'Finds channels like this one using what YouTube recommends next to its best videos and what ranks for its topics, then scores how closely their videos match.'),
+    h('div.sim-form', input, h('button.btn.primary', { onclick: find }, 'Find similar'), pick),
+    seeds.length > 1 ? h('div.chips.sim-recent', seeds.slice(0, 12).map((x) =>
+      h('button.chip' + (x.seed.channelId === ui.similarSeed ? '.accent' : ''), { onclick: () => { ui.similarSeed = x.seed.channelId; render(); } }, x.seed.title))) : null);
+
+  if (!cur) {
+    set($('list'), head, h('div.empty', h('h2', 'Find channels like any channel'), h('p', 'Paste a link above, or open a saved channel and click 🔍 Similar channels.')));
+    return;
+  }
+
+  const seedRec = db.channels[cur.seed.channelId];
+  const runningNow = cur.status === 'running';
+  const pct = runningNow && cur.total ? Math.round((cur.done / cur.total) * 100) : 100;
+  const results = cur.results || [];
+  set($('list'),
+    head,
+    h('section.sim-seed',
+      h('div.avatar', { style: cur.seed.avatar ? { backgroundImage: `url("${cur.seed.avatar}")` } : null }),
+      h('div', h('h2', `Channels like ${cur.seed.title}`),
+        h('div.vm', runningNow ? `${cur.stage}… ${cur.done}/${cur.total}` : cur.status === 'error' ? `Search failed: ${cur.error}` : `${results.length} channels · searched ${fmtAge((Date.now() - cur.at) / 86400000)}`)),
+      h('div.sim-actions',
+        h('button.btn', { disabled: runningNow, onclick: () => openSimilar(cur.seed.channelId, true) }, runningNow ? 'Searching…' : '⟳ Search again'),
+        results.length ? h('button.btn', { onclick: () => navigator.clipboard.writeText(results.map((r) => r.url).join('\n')).then(() => toast(`${results.length} links copied`)) }, 'Copy links') : null,
+        h('button.icon-btn', { title: 'Remove this search', onclick: () => send('forgetSimilar', { seedId: cur.seed.channelId }) }, '✕'))),
+    runningNow ? h('div.progress', h('div', { style: { width: `${pct}%` } })) : null,
+    results.length
+      ? h('div.table-wrap', h('table.sim-table',
+          h('thead', h('tr', ['Channel', 'Similarity', 'Subs', 'Avg views / video', 'Days since start', 'Uploads / month', 'Last upload', 'Outliers', 'Top video', ''].map((t, i) => h('th' + (i >= 2 && i <= 7 ? '.num' : ''), t)))),
+          h('tbody', results.map((r) => similarRow(r, seedRec)))))
+      : runningNow ? h('div.empty', h('p', 'Searching YouTube… results appear here as they are checked (about a minute).')) : h('div.empty', h('p', 'No similar channels found. Try another channel or search again later.')));
 }
 
 /* ---------- competitor tracking (drawer) ---------- */
@@ -725,6 +847,7 @@ function renderDrawer() {
         h('button.btn', { onclick: () => refresh(ch.channelId), disabled: busy }, busy ? 'Refreshing…' : '⟳ Refresh'),
         h('button.btn' + (ch.starred ? '.primary' : ''), { onclick: () => send('updateChannel', { channelId: ch.channelId, patch: { starred: !ch.starred } }) }, ch.starred ? '🔖 Need to look' : '🔖 Mark: need to look'),
         h('button.btn' + (ch.competitor ? '.primary' : ''), { onclick: () => toggleCompetitor(ch) }, ch.competitor ? '⚔ Competitor' : '⚔ Add to competitors'),
+        h('button.btn', { onclick: () => { closeDrawer(); openSimilar(ch.channelId); } }, '🔍 Similar channels'),
         h('button.btn.danger', { onclick: () => deleteChannel(ch) }, 'Delete')),
 
       ch.competitor ? trackingSection(ch) : null,
@@ -846,6 +969,7 @@ document.addEventListener('mousedown', (e) => { if (pop && !pop.contains(e.targe
 function channelMenu(ch, x, y) {
   popMenu(x, y, [
     { label: 'Details', fn: () => openDrawer(ch.channelId) },
+    { label: 'Find similar channels', fn: () => openSimilar(ch.channelId) },
     { label: 'Refresh data', fn: () => refresh(ch.channelId) },
     { label: ch.competitor ? 'Remove from competitors' : 'Add to competitors', fn: () => toggleCompetitor(ch) },
     { label: ch.starred ? 'Remove from Need to look' : 'Need to look', fn: () => send('updateChannel', { channelId: ch.channelId, patch: { starred: !ch.starred } }) },
@@ -1088,11 +1212,16 @@ function bind() {
 function fromHash() {
   const id = /#ch=([\w-]+)/.exec(location.hash)?.[1];
   if (id && db.channels[id]) openDrawer(id);
+  const sim = /#similar=(.+)$/.exec(location.hash)?.[1];
+  if (sim) {
+    history.replaceState(null, '', location.pathname);
+    openSimilar(decodeURIComponent(sim));
+  }
 }
 
 async function loadDb() {
-  const s = await chrome.storage.local.get(['niches', 'channels', 'settings']);
-  db = { niches: s.niches || [], channels: s.channels || {}, settings: s.settings || {} };
+  const s = await chrome.storage.local.get(['niches', 'channels', 'settings', 'similar']);
+  db = { niches: s.niches || [], channels: s.channels || {}, settings: s.settings || {}, similar: s.similar || {} };
 }
 
 await loadDb();
