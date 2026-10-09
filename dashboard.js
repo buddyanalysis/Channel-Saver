@@ -17,7 +17,7 @@ const VERSION = chrome.runtime.getManifest().version;
  * reloaded, so after copying new files the two can disagree — then saving
  * silently breaks. When they differ, ask for a one-click restart.
  */
-const BUILD = '1.8.1';
+const BUILD = '1.8.2';
 
 function showRestart(reason) {
   if (document.getElementById('restartBanner')) return;
@@ -1522,7 +1522,19 @@ function bind() {
   $('importFile').onchange = (e) => { if (e.target.files[0]) importFile(e.target.files[0]); e.target.value = ''; };
   $('autoRefresh').onchange = (e) => send('saveSettings', { patch: { autoRefresh: e.target.checked } });
   $('notify').onchange = (e) => send('saveSettings', { patch: { notify: e.target.checked } });
-  $('menuBtn').onclick = () => $('side').classList.toggle('open');
+  // ☰ : on small screens the menu slides over the page; on wide screens it hides / shows
+  // the left menu and remembers the choice.
+  const small = window.matchMedia('(max-width: 860px)');
+  const setHidden = (on) => {
+    document.body.classList.toggle('side-hidden', on);
+    $('menuBtn').title = on ? 'Show menu' : 'Hide menu';
+    try { localStorage.setItem('cs-side-hidden', on ? '1' : ''); } catch {}
+  };
+  try { setHidden(localStorage.getItem('cs-side-hidden') === '1'); } catch { setHidden(false); }
+  $('menuBtn').onclick = () => {
+    if (small.matches) $('side').classList.toggle('open');
+    else setHidden(!document.body.classList.contains('side-hidden'));
+  };
   document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => { closeDrawer(); closeModal(); }));
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { closePop(); closeModal(); closeDrawer(); }

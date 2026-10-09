@@ -767,3 +767,9 @@ body.has-restart .side { top: 46px; height: calc(100vh - 46px); }
 :root[data-theme="dark"] .built-by { background: #2a1820; border-color: #5a2c3a; color: #fff; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .built-by { background: #2a1820; border-color: #5a2c3a; color: #fff; } }
 @media (max-width: 700px) { .built-by { display: none; } }
+
+/* ☰ hides / shows the left menu on wide screens */
+.menu-btn { display: inline-grid; }
+@media (min-width: 861px) {
+  body.side-hidden .side { display: none; }
+}
