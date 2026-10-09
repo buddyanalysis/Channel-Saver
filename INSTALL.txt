@@ -25,9 +25,13 @@ Ho gaya!
 
 YOUTUBE PAR KYA MILEGA
 ----------------------
-- Channel ya video par Subscribe ke saath purple "+ Save" button. Dabayein, upar wale box
-  mein niche dhoondhein ya neeche "New niche" mein naya naam likh kar Enter dabayein.
-- Channel page par "🔍 Similar" button: is jaise doosre channels dhoondhta hai.
+- Subscribe ke saath purple "+ Save" button:
+  · Video page par yeh VIDEO ko niche mein save karta hai (menu mein upar "Video | Channel"
+    switch se channel bhi save kar sakte hain).
+  · Channel page par CHANNEL save karta hai.
+  Niche dhoondhein, ya neeche "New niche" mein naam likh kar Enter dabayein — wahin save.
+- Channel page par "🔍 Similar": wahin YouTube par side panel khulta hai ("Looking for you…")
+  aur kam az kam 20 milte-julte channels dikhata hai (In-depth = 40), "+ Save" ke saath.
 - Har video ke neeche badge: channel ke subscribers, outlier score (jaise 3.2x = channel ke
   aam views se 3 guna) aur views per hour.
 - Home, Search aur Subscriptions par neeche "⚡ Filter" button: loaded videos ko outlier,
@@ -36,9 +40,11 @@ YOUTUBE PAR KYA MILEGA
 - Kisi channel ke naam par mouse rakhein: us ke stats, "Latest uploads" aur "Most popular" videos.
 - Shorts dekhte waqt kone mein box: kab upload hua, views, channel ki typical views,
   channel ki uploads aur channel ki umar.
-- Video ke title ke neeche: exact upload time, aur buttons — Thumbnail download/copy,
-  Frame screenshot, Transcript, Swipe file mein save, Similar videos ("Same topic" ya
-  "Same title format"), aur 🖼 Share card (video ki saaf tasveer, background color ke saath).
+- Video ke title ke neeche: exact upload time, aur buttons — Thumbnail download, Frame
+  screenshot, Swipe file, Similar videos ("Same topic", "Same title format", "Similar channels").
+- 💬 Assisted reply: YouTube Studio ke Comments page (aur apni videos) par har comment ke liye
+  aap ke templates se naam ke saath reply likh deta hai. Reply AAP khud dabate hain — extension
+  kabhi khud post nahi karti.
 - Har video ke badge mein 📸: us video ka Share card.
 
 
@@ -57,9 +63,11 @@ DASHBOARD (Chrome mein Channel Saver ke icon par click)
   purana, monthly uploads, last upload; kisi bhi column se sort karein. "+ Save" se seedha save.
 - 📌 Swipe file: YouTube se save ki hui videos, video ke hisse (hook waghaira) aur thumbnails,
   notes aur tags ke saath.
-- 🖼 Thumbnail tester: apna thumbnail aur title upload karein aur YouTube search ya apne
-  competitors ke beech dekhein (desktop aur mobile view). "▶ Test on YouTube" se aap ka
-  thumbnail aap ke asal YouTube Home / Search / Subscriptions mein nazar aata hai.
+- 🎯 CTR Tester: 3 thumbnails (A/B/C) aur titles. Preview (Home, Mobile, Search, Sidebar,
+  Large, Dark, Squint, Grayscale), Score (contrast, rang, saaf, chhote size par, competitors se
+  alag, time-badge corner), aur Click test (pick rate %). "▶ Test inside YouTube" bhi.
+- Niche kholne par us mein save ki hui videos ("🎬 Saved videos") bhi nazar aati hain.
+- ⚔ Competitors: kisi competitor par click karein to upar sirf usi ki uploads; ⓘ = details.
 - ⚙ Settings: jo feature nahi chahiye use band kar dein.
 - Dark/Light mode: upar ◐ button.
 

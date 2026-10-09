@@ -144,3 +144,41 @@ html[dark] .cs-vt-btn { background: rgba(139, 92, 246, 0.2); color: #ddd6fe; }
 .cs-tt-bar button { padding: 5px 10px; border: 0; border-radius: 14px; background: rgba(255,255,255,.18); color: #fff; font: 500 12.5px Roboto, Arial, sans-serif; cursor: pointer; }
 .cs-tt-bar button:hover { background: rgba(255,255,255,.3); }
 .cs-tt-bar button.stop { background: #fff; color: #6d28d9; }
+
+/* assisted reply */
+.cs-fab.cs-fab-reply { left: auto; right: 24px; transform: none; }
+.cs-ar textarea { min-height: 60px; }
+.cs-ar-opt { display: flex; gap: 8px; align-items: center; font-size: 13px; cursor: pointer; }
+.cs-ar-card { padding: 12px; border: 1px solid var(--cs-line); border-radius: 12px; background: var(--cs-soft); display: flex; flex-direction: column; gap: 6px; }
+.cs-ar-author { font-weight: 700; }
+.cs-ar-text { font-size: 13px; white-space: pre-wrap; max-height: 120px; overflow-y: auto; }
+.cs-ar-card .cs-row-actions { padding: 4px 0 0; }
+.cs-ar-status { font-size: 12.5px; color: var(--cs-mut); padding: 8px 10px; border-radius: 8px; background: var(--cs-soft); }
+.cs-ar-status.bad { color: #dc2626; }
+.cs-reply-current { outline: 3px solid #7c3aed; outline-offset: 4px; border-radius: 12px; }
+.cs-reply-done { opacity: .55; }
+
+/* "Looking for you…" while a similar search runs */
+.cs-looking { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 10px 8px; padding: 14px 16px; border-radius: 14px; background: rgba(124, 58, 237, .1); }
+.cs-glass { position: relative; width: 44px; height: 44px; flex-shrink: 0; }
+.cs-glass span { position: absolute; left: 8px; top: 8px; font-size: 26px; line-height: 1; animation: cs-search 1.6s ease-in-out infinite; }
+@keyframes cs-search {
+  0% { transform: translate(0, 0) rotate(-10deg); }
+  25% { transform: translate(8px, -5px) rotate(10deg); }
+  50% { transform: translate(10px, 6px) rotate(-6deg); }
+  75% { transform: translate(-2px, 8px) rotate(8deg); }
+  100% { transform: translate(0, 0) rotate(-10deg); }
+}
+.cs-looking-txt b { font-size: 15px; }
+.cs-progress { flex-basis: 100%; height: 5px; border-radius: 3px; background: rgba(124, 58, 237, .18); overflow: hidden; }
+.cs-progress i { display: block; height: 100%; background: #7c3aed; transition: width .4s; }
+
+.cs-sim-list { display: flex; flex-direction: column; }
+.cs-sim-row { display: flex; gap: 10px; align-items: flex-start; padding: 10px 8px; border-bottom: 1px solid var(--cs-line); }
+.cs-sim-meta { flex: 1; min-width: 0; }
+.cs-sim-name { font-weight: 600; color: inherit; text-decoration: none; }
+.cs-sim-name:hover { text-decoration: underline; }
+.cs-sim-bar { width: 120px; height: 5px; border-radius: 3px; background: var(--cs-soft); overflow: hidden; margin: 4px 0 2px; }
+.cs-sim-bar i { display: block; height: 100%; background: #7c3aed; }
+.cs-sim-acts { display: flex; flex-direction: column; gap: 4px; }
+.cs-sim-acts .cs-btn-p { padding: 6px 10px; font-size: 12.5px; }

@@ -111,3 +111,8 @@ html:not([dark]) .cs-link { color: #6d28d9; }
 /* Dark mode: secondary text in the Save menu stays readable. */
 html[dark] .cs-sub, html[dark] .cs-empty, html[dark] .cs-label, html[dark] .cs-busy { opacity: .9; }
 html[dark] .cs-menu { color: #fff; }
+.cs-empty.cs-err { color: #dc2626; opacity: 1; display: flex; flex-direction: column; gap: 6px; }
+html[dark] .cs-empty.cs-err { color: #fca5a5; }
+.cs-mode { display: flex; gap: 4px; margin-bottom: 10px; }
+.cs-mode button { flex: 1; padding: 6px 8px; border: 1px solid rgba(128,128,128,.3); border-radius: 8px; background: none; color: inherit; font: 500 12.5px Roboto, Arial, sans-serif; cursor: pointer; }
+.cs-mode button.on { background: #7c3aed; color: #fff; border-color: transparent; }

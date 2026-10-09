@@ -192,7 +192,8 @@ const HANDLERS = {
       if ('competitor' in patch) c.competitorSince = patch.competitor ? Date.now() : null;
       return { channel: c };
     });
-    if (patch.competitor) await pollCompetitor(channelId).catch(() => {});
+    // Upload history can take a few seconds when the RSS feed is down; don't hold the reply.
+    if (patch.competitor) pollCompetitor(channelId).catch(() => {});
     return res;
   },
 
@@ -324,6 +325,46 @@ const HANDLERS = {
     throw new Error('Thumbnail not available');
   },
 
+  /* ---- videos saved into niches (from the Save button on a video page) ---- */
+  videoLookup: async ({ videoId }) => {
+    const st = await load();
+    return { item: st.swipe.find((x) => x.type === 'video' && x.videoId === videoId) || null };
+  },
+  saveVideoToNiche: async ({ videoId, nicheId, on = true }) => {
+    if (!videoId || !nicheId) throw new Error('Missing video or niche');
+    const st = await load();
+    const existing = st.swipe.find((x) => x.type === 'video' && x.videoId === videoId);
+    // A new video: look up its title, channel, views and exact upload time first.
+    const info = existing || !on ? null : await videoInfo(videoId).catch(() => null);
+    return mutate((s) => {
+      let it = s.swipe.find((x) => x.type === 'video' && x.videoId === videoId);
+      if (!it) {
+        if (!on) return { item: null };
+        it = {
+          id: uid(),
+          type: 'video',
+          videoId,
+          channelId: info?.channelId || '',
+          title: info?.title || '',
+          channelName: info?.channelName || '',
+          views: info?.views || 0,
+          published: info?.published || null,
+          duration: info?.lengthSeconds || 0,
+          start: null,
+          end: null,
+          note: '',
+          tags: [],
+          nicheIds: [],
+          addedAt: Date.now(),
+        };
+        s.swipe.unshift(it);
+      }
+      it.nicheIds = (it.nicheIds || []).filter((x) => x !== nicheId);
+      if (on) it.nicheIds.push(nicheId);
+      return { item: it };
+    });
+  },
+
   /* ---- swipe file ---- */
   saveSwipe: ({ item }) =>
     mutate((s) => {
@@ -452,7 +493,7 @@ async function runSimilar({ input, force = false, mode = 'quick' }) {
           // Throttle storage writes; the UI only needs a smooth bar.
           if (Date.now() - lastWrite < 700 && done < total) return;
           lastWrite = Date.now();
-          saveSimilar(seedId, { stage, done, total, ...(partial.length ? { results: partial.slice(0, mode === 'deep' ? 25 : 10) } : {}) });
+          saveSimilar(seedId, { stage, done, total, ...(partial.length ? { results: partial.slice(0, mode === 'deep' ? 40 : 20) } : {}) });
         },
       });
       await saveSimilar(seedId, { status: 'done', stage: 'Done', results, at: Date.now() });

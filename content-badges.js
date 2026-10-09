@@ -358,7 +358,10 @@
     tabs.append(tLatest, tPopular);
     const actions = el('div', 'cs-hover-actions');
     const sim = el('button', 'cs-link', '🔍 Similar channels');
-    sim.addEventListener('click', () => CS.send('openDashboard', { hash: `#similar=${encodeURIComponent(`https://www.youtube.com${path}`)}` }));
+    sim.addEventListener('click', () => {
+      card?.remove();
+      CS.similarPanel(`https://www.youtube.com${path}`, lite.title);
+    });
     const open = el('a', 'cs-link', 'Open channel ↗');
     open.href = path;
     actions.append(sim, open);

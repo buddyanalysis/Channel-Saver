@@ -42,6 +42,10 @@ Aap ka saara data (channels, niches, notes) save rehta hai.
   (Home, Search, Subscriptions) with "Load more", channel hover preview, Shorts stats box,
   video tools (exact upload time, thumbnail download/copy, frame screenshot, transcript,
   swipe file, similar videos), channel page par Similar button
+- **Video Save:** video page par Save video ko niche mein save karta hai (niche view mein "Saved videos")
+- **Similar on YouTube:** channel page par side panel — kam az kam 20 milte-julte channels
+- **CTR Tester:** A/B/C thumbnails ka preview, score aur click test
+- **Assisted reply:** Studio comments par personal replies likh deta hai, bhejte aap khud hain
 - **Swipe file:** videos, video ke hisse aur thumbnails — notes, tags, niches
 - **Auto-backup** har 12 ghante (Downloads › Channel Saver Backups) aur ek click restore
 - **Share card:** kisi bhi video ki saaf tasveer, background color ke saath

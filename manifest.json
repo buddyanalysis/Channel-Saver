@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Channel Saver",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Save YouTube channels into niches and see their growth, outlier videos and estimated earnings.",
   "permissions": [
     "storage",
@@ -16,7 +16,8 @@
     "https://www.youtube.com/*",
     "https://i.ytimg.com/*",
     "https://yt3.googleusercontent.com/*",
-    "https://yt3.ggpht.com/*"
+    "https://yt3.ggpht.com/*",
+    "https://studio.youtube.com/*"
   ],
   "background": {
     "service_worker": "background.js",
@@ -29,12 +30,28 @@
       ],
       "js": [
         "content-core.js",
+        "content-similar.js",
         "content.js",
         "content-share.js",
         "content-badges.js",
         "content-shorts.js",
         "content-video.js",
-        "content-thumbtest.js"
+        "content-thumbtest.js",
+        "content-reply.js"
+      ],
+      "css": [
+        "content.css",
+        "content-tools.css"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://studio.youtube.com/*"
+      ],
+      "js": [
+        "content-core.js",
+        "content-reply.js"
       ],
       "css": [
         "content.css",

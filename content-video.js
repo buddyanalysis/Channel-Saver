@@ -1,7 +1,6 @@
 /**
  * Video page tools, in one bar under the title: exact upload time, thumbnail
- * download/copy, frame screenshot, transcript, save to Swipe file and
- * Similar videos.
+ * download, frame screenshot, save to Swipe file and Similar videos.
  */
 (() => {
   const CS = window.CS;
@@ -9,7 +8,6 @@
   let bar = null;
   let barFor = null;
   let info = null;
-  let infoLite = null;
   let panel = null;
 
   const videoId = () => new URL(location.href).searchParams.get('v');
@@ -30,21 +28,6 @@
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
-  }
-
-  // The clipboard only takes PNG images.
-  async function toPng(blob) {
-    if (blob.type === 'image/png') return blob;
-    const bmp = await createImageBitmap(blob);
-    const c = el('canvas');
-    c.width = bmp.width;
-    c.height = bmp.height;
-    c.getContext('2d').drawImage(bmp, 0, 0);
-    return new Promise((r) => c.toBlob(r, 'image/png'));
-  }
-
-  async function copyImage(blob) {
-    await navigator.clipboard.write([new ClipboardItem({ 'image/png': await toPng(blob) })]);
   }
 
   async function thumbnail() {
@@ -93,61 +76,6 @@
     return panel;
   }
 
-  /* ---------- transcript (YouTube's own panel, read from the page) ---------- */
-
-  async function readTranscript() {
-    const segSel = 'ytd-transcript-segment-renderer, transcript-segment-view-model';
-    const read = () => [...document.querySelectorAll(segSel)].map((s) => ({
-      t: (s.querySelector('.segment-timestamp, .ytwTranscriptSegmentViewModelTimestamp, [class*="timestamp"]')?.textContent || '').trim(),
-      text: (s.querySelector('.segment-text, yt-formatted-string.segment-text, [class*="segment-text"], span[role="text"]')?.textContent || s.textContent || '').replace(/\s+/g, ' ').trim(),
-    })).filter((x) => x.text);
-    let segs = read();
-    if (segs.length) return segs;
-    // Open the description and press YouTube's own (visible) "Show transcript";
-    // the page also keeps hidden copies of that button that do nothing.
-    document.querySelector('ytd-watch-metadata #description-inline-expander #expand, tp-yt-paper-button#expand')?.click();
-    await new Promise((r) => setTimeout(r, 500));
-    const candidates = [...document.querySelectorAll('ytd-video-description-transcript-section-renderer button, button')]
-      .filter((b) => /show transcript/i.test(`${b.textContent} ${b.getAttribute('aria-label') || ''}`));
-    const btn = candidates.find((b) => b.offsetParent) || candidates[0];
-    if (!btn) throw new Error('This video has no transcript.');
-    btn.click();
-    for (let i = 0; i < 40 && !segs.length; i++) {
-      await new Promise((r) => setTimeout(r, 300));
-      segs = read();
-    }
-    if (!segs.length) throw new Error('YouTube did not send a transcript for this video right now. Try again in a minute, or open YouTube’s own “Show transcript” under the description.');
-    return segs;
-  }
-
-  async function showTranscript() {
-    const body = el('div', 'cs-transcript', 'Loading transcript…');
-    openPanel('Transcript', body);
-    try {
-      const segs = await readTranscript();
-      const plain = segs.map((s) => s.text).join(' ').replace(/\s+/g, ' ').trim();
-      const timed = segs.map((s) => `${s.t} ${s.text}`).join('\n');
-      const words = plain.split(/\s+/).length;
-      const copy1 = el('button', 'cs-btn-s', 'Copy text');
-      copy1.addEventListener('click', () => navigator.clipboard.writeText(plain).then(() => CS.toast('Transcript copied')));
-      const copy2 = el('button', 'cs-btn-s', 'Copy with timestamps');
-      copy2.addEventListener('click', () => navigator.clipboard.writeText(timed).then(() => CS.toast('Transcript with timestamps copied')));
-      const dl = el('button', 'cs-btn-s', 'Download .txt');
-      dl.addEventListener('click', () => saveBlob(new Blob([timed], { type: 'text/plain' }), `${fileName(info?.title || document.title)}-transcript.txt`));
-      const actions = el('div', 'cs-row-actions');
-      actions.append(copy1, copy2, dl);
-      const list = el('div', 'cs-tr-list');
-      for (const s of segs) {
-        const r = el('div', 'cs-tr-seg');
-        r.append(el('span', 'cs-tr-t', s.t), el('span', null, s.text));
-        list.append(r);
-      }
-      body.replaceChildren(el('div', 'cs-panel-info', `${segs.length} lines · ${words.toLocaleString()} words · about ${Math.max(1, Math.round(words / 150))} min read`), actions, list);
-    } catch (e) {
-      body.textContent = e.message;
-    }
-  }
-
   /* ---------- similar videos ---------- */
 
   const STOP = new Set('the a an and or of to in on for with how why what is are was were this that you your from by at as it its be vs new full video official hindi urdu ka ki ke ko se mein hai aur kya kaise'.split(' '));
@@ -179,14 +107,30 @@
     return words.slice(0, 3).join(' ');
   }
 
+  let stopSimLive = null;
+
   async function showSimilarVideos(_btn, mode = 'topic') {
     const body = el('div', 'cs-simv');
     const tabs = el('div', 'cs-hover-tabs cs-simv-tabs');
     const tTopic = el('button', mode === 'topic' ? 'on' : null, 'Same topic');
     const tFormat = el('button', mode === 'format' ? 'on' : null, 'Same title format');
+    const tChannels = el('button', mode === 'channels' ? 'on' : null, 'Similar channels');
     tTopic.addEventListener('click', () => showSimilarVideos(null, 'topic'));
     tFormat.addEventListener('click', () => showSimilarVideos(null, 'format'));
-    tabs.append(tTopic, tFormat);
+    tChannels.addEventListener('click', () => showSimilarVideos(null, 'channels'));
+    tabs.append(tTopic, tFormat, tChannels);
+    stopSimLive?.();
+    if (mode === 'channels') {
+      // Channels like this video's channel: a quick read on the whole niche.
+      body.classList.add('cs-results', 'cs-sim-list');
+      openPanel('Similar', tabs, body);
+      if (!info?.channelId) {
+        body.replaceChildren(el('div', 'cs-panel-info', 'Loading video details… try again in a second.'));
+        return;
+      }
+      stopSimLive = CS.similarChannelsInto(body, `https://www.youtube.com/channel/${info.channelId}`);
+      return;
+    }
     body.append(el('div', 'cs-panel-info', mode === 'topic' ? 'Searching YouTube for this topic…' : 'Searching YouTube for this title format…'));
     openPanel('Similar videos', tabs, body);
     const title = info?.title || document.querySelector('ytd-watch-metadata h1')?.textContent || '';
@@ -312,21 +256,9 @@
     const tools = el('div', 'cs-vt-row');
     tools.append(
       button('⤓ Thumbnail', 'Download the thumbnail in the best size', (b) => act(b, async () => saveBlob(await thumbnail(), `${fileName(info?.title)}-thumbnail.jpg`), 'Thumbnail downloaded')),
-      button('⧉ Copy thumbnail', 'Copy the thumbnail image', (b) => act(b, async () => copyImage(await thumbnail()), 'Thumbnail copied')),
       button('📷 Frame', 'Download a screenshot of the current frame', (b) => act(b, async () => saveBlob(await frame(), `${fileName(info?.title)}-${CS.mmss(document.querySelector('video')?.currentTime).replace(/:/g, '-')}.png`), 'Frame saved')),
-      button('⧉ Copy frame', 'Copy the current frame', (b) => act(b, async () => copyImage(await frame()), 'Frame copied')),
-      button('📝 Transcript', 'Read, copy or download the transcript', showTranscript),
       button('📌 Swipe file', 'Save this video, a part of it, or its thumbnail', showSwipe),
       button('🔍 Similar videos', 'Same topic or title format on other channels', showSimilarVideos),
-      button('🖼 Share card', 'A clean picture of this video to share', () => CS.shareCard({
-        id,
-        title: info?.title || document.querySelector('ytd-watch-metadata h1')?.textContent?.trim(),
-        channelName: info?.channelName,
-        views: info?.views,
-        ageText: info?.published ? CS.ago((Date.now() - info.published) / 86400000) : '',
-        duration: info?.lengthSeconds,
-        avatar: infoLite?.avatar,
-      })),
     );
     bar.append(meta, tools);
     host.insertAdjacentElement('afterend', bar);
@@ -334,7 +266,6 @@
       info = await CS.send('videoInfo', { videoId: id });
       if (barFor !== id) return;
       const lite = info.channelId ? await CS.lite(`/channel/${info.channelId}`) : null;
-      infoLite = lite;
       const parts = [info.published ? `Uploaded ${CS.when(info.published)}` : '', `${info.views.toLocaleString()} views`];
       if (lite?.medianViews) {
         const x = info.views / lite.medianViews;

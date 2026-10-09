@@ -92,7 +92,7 @@
 
   /* ---------- settings ---------- */
 
-  const DEFAULTS = { saveButton: true, badges: true, filter: true, hover: true, shorts: true, videoTools: true, similarButton: true };
+  const DEFAULTS = { saveButton: true, badges: true, filter: true, hover: true, shorts: true, videoTools: true, similarButton: true, assistedReply: true };
   CS.features = { ...DEFAULTS };
   const listeners = [];
   CS.onFeatures = (fn) => listeners.push(fn);
@@ -130,6 +130,9 @@
   CS.schedule = schedule;
   new MutationObserver(schedule).observe(document.documentElement, { childList: true, subtree: true });
   window.addEventListener('yt-navigate-finish', schedule);
+  // A page that never changes after load still needs a first pass.
+  CS.onFeatures(schedule);
+  setTimeout(schedule, 0);
 
   /* ---------- channel facts (batched) ---------- */
 
