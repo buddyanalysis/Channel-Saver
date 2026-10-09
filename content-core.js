@@ -36,6 +36,8 @@
     setTimeout(() => t.remove(), 3000);
   };
 
+  CS.closePanels = () => document.querySelectorAll('.cs-panel').forEach((p) => p.remove());
+
   CS.visible = (el) => !!el && el.offsetParent !== null && el.getBoundingClientRect().width > 0;
 
   /* ---------- formatting ---------- */

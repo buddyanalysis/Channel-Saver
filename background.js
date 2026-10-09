@@ -1,4 +1,4 @@
-import { fetchChannel, fetchFeed, parseInput, videoInfo, searchVideos } from './lib/yt.js';
+import { fetchChannel, fetchFeed, parseInput, videoInfo, searchVideos, popularVideos } from './lib/yt.js';
 import { getLiteMany } from './lib/lite.js';
 import { applyFeed, noteOutlier, fmtWhen } from './lib/track.js';
 import { computeMetrics } from './lib/metrics.js';
@@ -197,6 +197,7 @@ const HANDLERS = {
   },
 
   pollCompetitors: () => pollCompetitors({ force: true }),
+  backupNow: () => autoBackup({ force: true }),
   findSimilar: runSimilar,
   forgetSimilar: async ({ seedId }) => {
     const { similar = {} } = await chrome.storage.local.get('similar');
@@ -260,6 +261,14 @@ const HANDLERS = {
           niches++;
         }
       }
+      let swipe = 0;
+      for (const it of Array.isArray(data.swipe) ? data.swipe : []) {
+        if (it?.id && !s.swipe.some((x) => x.id === it.id)) {
+          s.swipe.push(it);
+          swipe++;
+        }
+      }
+      s.swipe.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
       for (const [id, c] of Object.entries(data.channels)) {
         if (!c?.channelId) continue;
         const prev = s.channels[id];
@@ -269,7 +278,7 @@ const HANDLERS = {
           channels++;
         }
       }
-      return { niches, channels };
+      return { niches, channels, swipe };
     }),
 
   saveSettings: ({ patch }) =>
@@ -283,6 +292,13 @@ const HANDLERS = {
 
   /* ---- on-page tools ---- */
   channelLite: ({ paths }) => getLiteMany(paths || []),
+  channelPopular: async ({ path }) => {
+    const hit = popularCache.get(path);
+    if (hit && Date.now() - hit.at < DAY) return hit.list;
+    const list = await popularVideos(path);
+    popularCache.set(path, { at: Date.now(), list });
+    return list;
+  },
   videoInfo: ({ videoId }) => videoInfo(videoId),
   searchVideos: async ({ query, exclude }) => {
     const list = await searchVideos(query);
@@ -395,6 +411,7 @@ chrome.action.onClicked.addListener(() => openDashboard());
  */
 const SIMILAR_TTL = 3 * DAY;
 const running = new Map();
+const popularCache = new Map(); // channel path → { at, list }
 
 // Writes run one at a time: a late progress write must never undo "done".
 let similarChain = Promise.resolve();
@@ -411,7 +428,7 @@ async function writeSimilar(seedId, patch) {
   await chrome.storage.local.set({ similar: Object.fromEntries(keep) });
 }
 
-async function runSimilar({ input, force = false }) {
+async function runSimilar({ input, force = false, mode = 'quick' }) {
   const st = await load();
   let seed = st.channels[input] || findSaved(st.channels, input);
   if (!seed) seed = compact(await fetchChannel(input));
@@ -420,19 +437,22 @@ async function runSimilar({ input, force = false }) {
 
   const { similar = {} } = await chrome.storage.local.get('similar');
   const cached = similar[seedId];
-  if (!force && cached?.status === 'done' && Date.now() - cached.at < SIMILAR_TTL) return { seedId, cached: true };
+  // An in-depth result also answers a quick request; not the other way round.
+  const enough = cached?.mode === 'deep' || cached?.mode === mode || (!cached?.mode && mode === 'quick');
+  if (!force && cached?.status === 'done' && enough && Date.now() - cached.at < SIMILAR_TTL) return { seedId, cached: true };
 
   const job = (async () => {
     const info = { channelId: seedId, title: seed.title, handle: seed.handle, avatar: seed.avatar, subs: seed.subs, url: seed.url };
-    await saveSimilar(seedId, { seed: info, status: 'running', stage: 'Starting', done: 0, total: 1, results: cached?.results || [], at: Date.now(), error: '' });
+    await saveSimilar(seedId, { seed: info, mode, status: 'running', stage: 'Starting', done: 0, total: 1, results: cached?.results || [], at: Date.now(), error: '' });
     let lastWrite = 0;
     try {
       const results = await findSimilar(seed, {
+        mode,
         onProgress: (stage, done, total, partial) => {
           // Throttle storage writes; the UI only needs a smooth bar.
           if (Date.now() - lastWrite < 700 && done < total) return;
           lastWrite = Date.now();
-          saveSimilar(seedId, { stage, done, total, ...(partial.length ? { results: partial.slice(0, 14) } : {}) });
+          saveSimilar(seedId, { stage, done, total, ...(partial.length ? { results: partial.slice(0, mode === 'deep' ? 25 : 10) } : {}) });
         },
       });
       await saveSimilar(seedId, { status: 'done', stage: 'Done', results, at: Date.now() });
@@ -506,6 +526,77 @@ chrome.notifications?.onClicked.addListener((id) => {
 // and every channel still gets a growth point about once a day.
 const PER_TICK = 12;
 
+/* ---------- auto-backup ---------- */
+
+/**
+ * Chrome deletes an extension's storage when it is removed (or loaded again
+ * from a different folder), so every 12 hours the whole library is written to
+ * Downloads/Channel Saver Backups: one "latest" file plus one per day. It runs
+ * quietly — the download bubble is hidden and the entries are cleared from the
+ * downloads list; the files stay on disk.
+ */
+const BACKUP_EVERY = 12 * HOUR;
+const BACKUP_DIR = 'Channel Saver Backups';
+
+function toDataUrl(text) {
+  const bytes = new TextEncoder().encode(text);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return `data:application/json;base64,${btoa(bin)}`;
+}
+
+function downloadDone(id) {
+  return new Promise((resolve) => {
+    const onChange = (delta) => {
+      if (delta.id !== id || !delta.state || delta.state.current === 'in_progress') return;
+      chrome.downloads.onChanged.removeListener(onChange);
+      resolve(delta.state.current);
+    };
+    chrome.downloads.onChanged.addListener(onChange);
+    setTimeout(() => {
+      chrome.downloads.onChanged.removeListener(onChange);
+      resolve('timeout');
+    }, 30000);
+  });
+}
+
+async function autoBackup({ force = false } = {}) {
+  if (!chrome.downloads) return { skipped: 'no downloads permission' };
+  const st = await load();
+  if (!force && Date.now() - (st.settings.lastBackupAt || 0) < BACKUP_EVERY) return { skipped: 'not due' };
+  const count = Object.keys(st.channels).length + st.niches.length + st.swipe.length;
+  if (!count) return { skipped: 'library is empty' };
+  const data = {
+    app: 'channel-saver',
+    version: chrome.runtime.getManifest().version,
+    exportedAt: new Date().toISOString(),
+    auto: true,
+    niches: st.niches,
+    channels: st.channels,
+    swipe: st.swipe,
+  };
+  const url = toDataUrl(JSON.stringify(data));
+  const day = new Date().toISOString().slice(0, 10);
+  const names = [`${BACKUP_DIR}/channel-saver-backup-latest.json`, `${BACKUP_DIR}/channel-saver-backup-${day}.json`];
+  await chrome.downloads.setUiOptions?.({ enabled: false }).catch(() => {});
+  let ok = 0;
+  try {
+    for (const filename of names) {
+      const id = await chrome.downloads.download({ url, filename, conflictAction: 'overwrite', saveAs: false });
+      if ((await downloadDone(id)) === 'complete') ok++;
+      await chrome.downloads.erase({ id }).catch(() => {});
+    }
+  } finally {
+    await chrome.downloads.setUiOptions?.({ enabled: true }).catch(() => {});
+  }
+  if (!ok) throw new Error('Backup could not be saved to Downloads');
+  await mutate((s) => {
+    s.settings.lastBackupAt = Date.now();
+    s.settings.lastBackupCount = Object.keys(s.channels).length;
+  });
+  return { ok: true, channels: Object.keys(st.channels).length, file: names[0] };
+}
+
 /* ---------- update check ---------- */
 
 async function checkUpdate() {
@@ -530,6 +621,7 @@ async function tick() {
   const st = await load();
   if (UPDATE_URL && Date.now() - (st.settings.updateCheckedAt || 0) > 12 * HOUR) await checkUpdate().catch(() => {});
   await pollCompetitors().catch(() => {});
+  await autoBackup().catch(() => {});
   if (!st.settings.autoRefresh) return;
   const age = (c) => Date.now() - (c.fetchedAt || 0);
   const stale = Object.values(st.channels)

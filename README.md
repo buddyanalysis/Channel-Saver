@@ -43,6 +43,9 @@ Aap ka saara data (channels, niches, notes) save rehta hai.
   video tools (exact upload time, thumbnail download/copy, frame screenshot, transcript,
   swipe file, similar videos), channel page par Similar button
 - **Swipe file:** videos, video ke hisse aur thumbnails — notes, tags, niches
+- **Auto-backup** har 12 ghante (Downloads › Channel Saver Backups) aur ek click restore
+- **Share card:** kisi bhi video ki saaf tasveer, background color ke saath
+- Similar channels: Quick / In-depth search aur sort; Similar videos: same topic / same title format
 - **Thumbnail tester:** apna thumbnail search results ya competitors ke beech dekhein
 - **Settings:** har feature on/off
 - Cards / Table view, din ke hisaab se "Recently added", search, filters

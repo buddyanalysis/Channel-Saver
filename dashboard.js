@@ -13,7 +13,7 @@ const VERSION = chrome.runtime.getManifest().version;
  * reloaded, so after copying new files the two can disagree — then saving
  * silently breaks. When they differ, ask for a one-click restart.
  */
-const BUILD = '1.4.0';
+const BUILD = '1.5.0';
 
 function showRestart(reason) {
   if (document.getElementById('restartBanner')) return;
@@ -240,6 +240,9 @@ function renderSide() {
     db.niches.length ? null : h('div', { style: { padding: '6px 10px', color: 'var(--faint)', fontSize: '13px' } }, 'No niches yet'),
   );
   $('autoRefresh').checked = db.settings.autoRefresh !== false;
+  const lb = db.settings.lastBackupAt;
+  $('backupInfo').textContent = lb ? `Auto-backup: ${fmtAge((Date.now() - lb) / 86400000).replace('today', 'today')} · every 12h` : 'Auto-backup: every 12h (first one soon)';
+  $('backupInfo').title = 'Saved to Downloads › Channel Saver Backups. Click to back up now.';
   $('notify').checked = db.settings.notify !== false;
 }
 
@@ -436,7 +439,10 @@ function render() {
     set(box, h('div.empty',
       h('h2', 'Save your first channel'),
       h('p', 'Open any channel or video on YouTube and click the purple Save button next to Subscribe. Or paste channel links here.'),
-      h('button.btn.primary', { onclick: () => addModal() }, '+ Add channels')));
+      h('div', { style: { display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' } },
+        h('button.btn.primary', { onclick: () => addModal() }, '+ Add channels'),
+        h('button.btn', { onclick: () => $('importFile').click() }, '⤒ Restore from backup')),
+      h('p.restore-hint', 'Had channels before? Click “Restore from backup” and pick Downloads › Channel Saver Backups › channel-saver-backup-latest.json.')));
   } else if (!list.length) {
     set(box, ui.view === 'competitors'
       ? h('div.empty', h('h2', 'No competitors yet'), h('p', 'Drag a channel card onto ⚔ Competitors in the left menu, or open a channel and click "Add to competitors". Competitors are checked every 6 hours so you can see what they post and how fast they grow.'))
@@ -748,6 +754,12 @@ function renderThumbTest(force) {
   source.addEventListener('change', () => { tt.source = source.value; query.hidden = tt.source !== 'search'; });
   query.addEventListener('input', () => { tt.query = query.value; });
   const load = h('button.btn.primary', { onclick: (e) => ttLoad(e.currentTarget) }, 'Load videos');
+  // Test inside the real YouTube feed (Home / Search / Subscriptions).
+  const live = h('button.btn', { onclick: async () => {
+    if (!tt.image) return toast('Upload your thumbnail first', true);
+    await chrome.storage.local.set({ thumbTest: { active: true, image: tt.image, title: tt.title, channel: tt.channel, position: tt.position, seed: tt.seed || Math.random() } });
+    chrome.tabs.create({ url: 'https://www.youtube.com/' });
+  } }, '▶ Test on YouTube');
   query.addEventListener('keydown', (e) => e.key === 'Enter' && load.click());
 
   const toggle = (label, key, on, off) => h('button.btn' + (tt[key] ? '.primary' : ''), { onclick: () => { tt[key] = !tt[key]; renderThumbTest(true); } }, tt[key] ? on : off);
@@ -773,26 +785,27 @@ function renderThumbTest(force) {
       h('label.field', 'Title', title),
       h('label.field', 'Channel', channel),
       h('label.field', 'Compare', source, query),
-      h('div.tt-buttons', load)),
+      h('div.tt-buttons', load, live)),
     h('div.tt-bar',
       toggle('view', 'mobile', '📱 Mobile view', '🖥 Desktop view'),
       h('button.btn', { onclick: () => { tt.position = tt.position === 'first' ? 'random' : 'first'; tt.seed = Math.random(); renderThumbTest(true); } }, tt.position === 'first' ? 'Position: first' : 'Position: random ⟳'),
       toggle('mark', 'mark', 'Highlight mine: on', 'Highlight mine: off'),
-      tt.image ? h('span.vm', 'Your thumbnail is in the grid') : h('span.vm', 'No thumbnail uploaded yet')),
+      tt.image ? h('span.vm', 'Your thumbnail is in the grid') : h('span.vm', 'No thumbnail uploaded yet'),
+      h('span.vm', '“Test on YouTube” puts it into your real Home / Search / Subscriptions feed; stop it from the purple bar there.')),
     grid));
 }
 
 /* ---------- similar channels ---------- */
 
 /** Opens the Similar view for a saved channel id or any channel link, starting a search if needed. */
-async function openSimilar(input, force = false) {
+async function openSimilar(input, force = false, mode = 'quick') {
   ui.view = 'similar';
   saveUi();
   const known = db.channels[input]?.channelId;
   if (known) ui.similarSeed = known;
   render();
   try {
-    const r = await send('findSimilar', { input, force });
+    const r = await send('findSimilar', { input, force, mode });
     ui.similarSeed = r.seedId;
     render();
   } catch (e) {
@@ -844,22 +857,25 @@ function renderSimilar() {
   const input = h('input.input', { id: 'simInput', placeholder: 'Paste a YouTube channel or video link…' });
   input.value = ui.simDraft || '';
   input.addEventListener('input', () => { ui.simDraft = input.value; });
-  const find = () => {
-    const v = input.value.trim();
-    if (!v) return;
+  const find = (mode) => {
+    const v = input.value.trim() || pick.value;
+    if (!v) return toast('Paste a channel link or pick a saved channel', true);
     ui.simDraft = '';
-    openSimilar(v);
+    openSimilar(v, false, mode);
   };
   if (wasTyping) setTimeout(() => { input.focus(); input.setSelectionRange(input.value.length, input.value.length); });
-  input.addEventListener('keydown', (e) => e.key === 'Enter' && find());
+  input.addEventListener('keydown', (e) => e.key === 'Enter' && find('quick'));
   const pick = h('select.input',
     h('option', { value: '' }, 'or pick a saved channel…'),
     Object.values(db.channels).sort((a, b) => a.title.localeCompare(b.title)).map((c) => h('option', { value: c.channelId }, c.title)));
-  pick.addEventListener('change', () => pick.value && openSimilar(pick.value));
+  pick.addEventListener('change', () => pick.value && openSimilar(pick.value, false, 'quick'));
 
   const head = h('section.sim-head',
-    h('p.sim-intro', 'Finds channels like this one using what YouTube recommends next to its best videos and what ranks for its topics, then scores how closely their videos match.'),
-    h('div.sim-form', input, h('button.btn.primary', { onclick: find }, 'Find similar'), pick),
+    h('p.sim-intro', 'Finds channels like this one using what YouTube recommends next to its videos and what ranks for its topics, then scores how closely their videos match. Quick ≈ 10 channels in under a minute; In-depth ≈ 25 channels and also follows the newest uploads, so it finds newer competitors.'),
+    h('div.sim-form.sim-form3', input,
+      h('button.btn.primary', { onclick: () => find('quick'), title: 'About 10 channels, under a minute' }, '⚡ Quick search'),
+      h('button.btn', { onclick: () => find('deep'), title: 'About 25 channels, 1–3 minutes' }, '🔬 In-depth search'),
+      pick),
     seeds.length > 1 ? h('div.chips.sim-recent', seeds.slice(0, 12).map((x) =>
       h('button.chip' + (x.seed.channelId === ui.similarSeed ? '.accent' : ''), { onclick: () => { ui.similarSeed = x.seed.channelId; render(); } }, x.seed.title))) : null);
 
@@ -871,15 +887,31 @@ function renderSimilar() {
   const seedRec = db.channels[cur.seed.channelId];
   const runningNow = cur.status === 'running';
   const pct = runningNow && cur.total ? Math.round((cur.done / cur.total) * 100) : 100;
-  const results = cur.results || [];
+  const SIM_SORTS = {
+    similarity: ['Most similar', (r) => r.similarity],
+    subs: ['Most subscribers', (r) => r.subs || 0],
+    views: ['Highest avg views', (r) => r.medianViews || 0],
+    newest: ['Newest channels', (r) => -(r.ageDays ?? 1e9)],
+    uploads: ['Most uploads / month', (r) => r.uploadsPerMonth ?? -1],
+    recent: ['Uploaded most recently', (r) => -(r.lastUpload ?? 1e9)],
+    outliers: ['Most outliers', (r) => r.outliers || 0],
+  };
+  const sortKey = SIM_SORTS[ui.simSort] ? ui.simSort : 'similarity';
+  const results = [...(cur.results || [])].sort((a, b) => SIM_SORTS[sortKey][1](b) - SIM_SORTS[sortKey][1](a));
+  const sortSel = h('select.input.sim-sort', Object.entries(SIM_SORTS).map(([k, [label]]) => h('option', { value: k }, `Sort: ${label}`)));
+  sortSel.value = sortKey;
+  sortSel.addEventListener('change', () => { ui.simSort = sortSel.value; render(); });
+  const modeLabel = cur.mode === 'deep' ? 'In-depth' : 'Quick';
   set($('list'),
     head,
     h('section.sim-seed',
       h('div.avatar', { style: cur.seed.avatar ? { backgroundImage: `url("${cur.seed.avatar}")` } : null }),
       h('div', h('h2', `Channels like ${cur.seed.title}`),
-        h('div.vm', runningNow ? `${cur.stage}… ${cur.done}/${cur.total}` : cur.status === 'error' ? `Search failed: ${cur.error}` : `${results.length} channels · searched ${fmtAge((Date.now() - cur.at) / 86400000)}`)),
+        h('div.vm', runningNow ? `${modeLabel} search · ${cur.stage}… ${cur.done}/${cur.total}` : cur.status === 'error' ? `Search failed: ${cur.error}` : `${results.length} channels · ${modeLabel} search · ${fmtAge((Date.now() - cur.at) / 86400000)}`)),
       h('div.sim-actions',
-        h('button.btn', { disabled: runningNow, onclick: () => openSimilar(cur.seed.channelId, true) }, runningNow ? 'Searching…' : '⟳ Search again'),
+        results.length ? sortSel : null,
+        h('button.btn', { disabled: runningNow, onclick: () => openSimilar(cur.seed.channelId, true, 'quick') }, runningNow ? 'Searching…' : '⚡ Quick again'),
+        h('button.btn', { disabled: runningNow, onclick: () => openSimilar(cur.seed.channelId, true, 'deep') }, '🔬 In-depth'),
         results.length ? h('button.btn', { onclick: () => navigator.clipboard.writeText(results.map((r) => r.url).join('\n')).then(() => toast(`${results.length} links copied`)) }, 'Copy links') : null,
         h('button.icon-btn', { title: 'Remove this search', onclick: () => send('forgetSimilar', { seedId: cur.seed.channelId }) }, '✕'))),
     runningNow ? h('div.progress', h('div', { style: { width: `${pct}%` } })) : null,
@@ -1416,7 +1448,7 @@ function exportCsv() {
 }
 
 function backup() {
-  const data = { app: 'channel-saver', version: 1, exportedAt: new Date().toISOString(), niches: db.niches, channels: db.channels };
+  const data = { app: 'channel-saver', version: VERSION, exportedAt: new Date().toISOString(), niches: db.niches, channels: db.channels, swipe: db.swipe || [] };
   download(`channel-saver-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(data), 'application/json');
 }
 
@@ -1424,7 +1456,7 @@ async function importFile(file) {
   try {
     const data = JSON.parse(await file.text());
     const res = await send('importData', { data });
-    toast(`Imported ${res.channels} channels and ${res.niches} niches`);
+    toast(`Restored ${res.channels} channels, ${res.niches} niches${res.swipe ? ` and ${res.swipe} swipes` : ''}`);
   } catch (e) {
     toast(e.message.includes('JSON') ? 'That file is not a backup' : e.message, true);
   }
@@ -1451,6 +1483,14 @@ function bind() {
   $('exportCsv').onclick = exportCsv;
   $('versionBtn').onclick = checkUpdates;
   $('settingsBtn').onclick = settingsModal;
+  $('backupInfo').onclick = async () => {
+    try {
+      const r = await send('backupNow');
+      toast(r.ok ? `Backed up ${r.channels} channels to Downloads › Channel Saver Backups` : `Nothing to back up (${r.skipped})`);
+    } catch (e) {
+      toast(e.message, true);
+    }
+  };
   $('backupBtn').onclick = backup;
   $('importBtn').onclick = () => $('importFile').click();
   $('importFile').onchange = (e) => { if (e.target.files[0]) importFile(e.target.files[0]); e.target.value = ''; };

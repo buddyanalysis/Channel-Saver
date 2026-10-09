@@ -73,6 +73,16 @@
       add(x >= 3 ? 'hot' : x >= 1.5 ? 'warm' : x < 0.5 ? 'cold' : '', `${x >= 10 ? Math.round(x) : x.toFixed(1)}x`, `Outlier: ${x.toFixed(1)}× this channel's typical views (${CS.num(lite.medianViews)})`);
     }
     if (rec.vph != null) add('vph', `${CS.num(rec.vph)}/h`, 'Views per hour since upload');
+    // 📸 share card for this video.
+    const cam = el('button', 'cs-b cs-cam', '📸');
+    cam.type = 'button';
+    cam.title = 'Share card of this video';
+    cam.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      CS.shareCard?.({ id: rec.id, title: rec.title, channelName: rec.channelName || lite?.title, views: rec.views, ageText: rec.ageDays != null ? CS.ago(rec.ageDays) : '', duration: rec.duration, avatar: lite?.avatar });
+    });
+    if (row.childElementCount) row.append(cam);
     row.hidden = !row.childElementCount;
   }
 
@@ -130,7 +140,7 @@
     if (!fab) {
       fab = el('button', 'cs-fab');
       fab.type = 'button';
-      fab.addEventListener('click', () => (panel ? closePanel() : openPanel()));
+      fab.addEventListener('click', () => (panel?.isConnected ? closePanel() : openPanel()));
       document.body.appendChild(fab);
     }
     fab.textContent = `⚡ Filter ${CS.tiles().length} videos`;
@@ -209,12 +219,15 @@
   }
 
   function openPanel() {
+    CS.closePanels();
     panel = el('aside', 'cs-panel');
     document.body.appendChild(panel);
     paintPanel();
   }
 
   function paintPanel() {
+    // Another tool's panel may have replaced ours.
+    if (panel && !panel.isConnected) panel = null;
     if (!panel) return;
     const head = el('div', 'cs-panel-head');
     const close = el('button', 'cs-x', '✕');
@@ -305,21 +318,51 @@
     stat('Uploads / month', lite.uploadsPerMonth ?? '—');
     stat('Last upload', lite.lastUpload ? CS.ago((Date.now() - lite.lastUpload) / 86400000) : '—');
     const vids = el('div', 'cs-hover-vids');
-    for (const v of (lite.latest || []).slice(0, 4)) {
-      const va = el('a', 'cs-hover-vid');
-      va.href = `/watch?v=${v.id}`;
-      const th = el('div', 'cs-res-th');
-      th.style.backgroundImage = `url("https://i.ytimg.com/vi/${v.id}/mqdefault.jpg")`;
-      va.append(th, el('div', 'cs-res-t', v.title), el('div', 'cs-res-s', `${CS.num(v.views)} views · ${CS.ago((Date.now() - v.published) / 86400000)}`));
-      vids.append(va);
-    }
+    const fill = (list, ageOf) => {
+      vids.replaceChildren();
+      for (const v of list.slice(0, 4)) {
+        const va = el('a', 'cs-hover-vid');
+        va.href = `/watch?v=${v.id}`;
+        const th = el('div', 'cs-res-th');
+        th.style.backgroundImage = `url("https://i.ytimg.com/vi/${v.id}/mqdefault.jpg")`;
+        va.append(th, el('div', 'cs-res-t', v.title), el('div', 'cs-res-s', `${CS.num(v.views)} views · ${ageOf(v)}`));
+        vids.append(va);
+      }
+      if (!list.length) vids.append(el('div', 'cs-res-s', 'No videos found.'));
+    };
+    const showLatest = () => fill(lite.latest || [], (v) => CS.ago((Date.now() - v.published) / 86400000));
+    showLatest();
+    // Latest | Popular tabs; Popular loads on first click (two small requests).
+    const tabs = el('div', 'cs-hover-tabs');
+    const tLatest = el('button', 'on', 'Latest uploads');
+    const tPopular = el('button', null, 'Most popular');
+    let popular = null;
+    tLatest.addEventListener('click', () => {
+      tLatest.classList.add('on');
+      tPopular.classList.remove('on');
+      showLatest();
+    });
+    tPopular.addEventListener('click', async () => {
+      tPopular.classList.add('on');
+      tLatest.classList.remove('on');
+      if (!popular) {
+        vids.replaceChildren(el('div', 'cs-res-s', 'Loading most popular…'));
+        try {
+          popular = await CS.send('channelPopular', { path });
+        } catch {
+          popular = [];
+        }
+      }
+      if (tPopular.classList.contains('on')) fill(popular, (v) => v.ageText || '');
+    });
+    tabs.append(tLatest, tPopular);
     const actions = el('div', 'cs-hover-actions');
     const sim = el('button', 'cs-link', '🔍 Similar channels');
     sim.addEventListener('click', () => CS.send('openDashboard', { hash: `#similar=${encodeURIComponent(`https://www.youtube.com${path}`)}` }));
     const open = el('a', 'cs-link', 'Open channel ↗');
     open.href = path;
     actions.append(sim, open);
-    card.append(head, stats, el('div', 'cs-label', 'Latest uploads'), vids, actions);
+    card.append(head, stats, tabs, vids, actions);
     document.body.appendChild(card);
     const r = a.getBoundingClientRect();
     const w = 340;

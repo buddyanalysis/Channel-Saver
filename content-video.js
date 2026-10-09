@@ -9,6 +9,7 @@
   let bar = null;
   let barFor = null;
   let info = null;
+  let infoLite = null;
   let panel = null;
 
   const videoId = () => new URL(location.href).searchParams.get('v');
@@ -78,7 +79,7 @@
   /* ---------- side panel ---------- */
 
   function openPanel(title, ...content) {
-    panel?.remove();
+    CS.closePanels();
     panel = el('aside', 'cs-panel');
     const head = el('div', 'cs-panel-head');
     const close = el('button', 'cs-x', '✕');
@@ -151,13 +152,46 @@
 
   const STOP = new Set('the a an and or of to in on for with how why what is are was were this that you your from by at as it its be vs new full video official hindi urdu ka ki ke ko se mein hai aur kya kaise'.split(' '));
 
-  async function showSimilarVideos() {
+  // Words that carry a title's *shape* rather than its topic ("How a … Became the World's …").
+  const FORMAT = new Set(`how why what when who which where the a an of to in on is was were are this that these those
+    became become becomes changed change changes world world's worlds history first ever most every truth behind real
+    story inside secret secrets you your didn't never know knew really actually i my we our tried did does do made make
+    built build invented invent discovered discover forgotten untold hidden simple one man woman people day days years
+    hours minutes 24 100 1000 $1 vs than greatest biggest deadliest worst best richest only`.split(/\s+/));
+
+  /** A quoted phrase of the longest run of "shape" words in the title, e.g. "became the world's". */
+  function formatQuery(title) {
+    const words = String(title || '').toLowerCase().replace(/[’']/g, "'").match(/[\p{L}\p{N}$']+/gu) || [];
+    let best = [];
+    let run = [];
+    for (const w of words) {
+      if (FORMAT.has(w)) run.push(w);
+      else {
+        if (run.length > best.length) best = run;
+        run = [];
+      }
+    }
+    if (run.length > best.length) best = run;
+    // Trim leading/trailing glue words so the phrase isn't just "the a of".
+    while (best.length && /^(the|a|an|of|to|in|on|is)$/.test(best[0])) best.shift();
+    while (best.length && /^(the|a|an|of|to|in|on|is)$/.test(best[best.length - 1])) best.pop();
+    if (best.length >= 2) return `"${best.join(' ')}"`;
+    return words.slice(0, 3).join(' ');
+  }
+
+  async function showSimilarVideos(_btn, mode = 'topic') {
     const body = el('div', 'cs-simv');
-    body.append(el('div', 'cs-panel-info', 'Searching YouTube for this topic…'));
-    openPanel('Similar videos', body);
+    const tabs = el('div', 'cs-hover-tabs cs-simv-tabs');
+    const tTopic = el('button', mode === 'topic' ? 'on' : null, 'Same topic');
+    const tFormat = el('button', mode === 'format' ? 'on' : null, 'Same title format');
+    tTopic.addEventListener('click', () => showSimilarVideos(null, 'topic'));
+    tFormat.addEventListener('click', () => showSimilarVideos(null, 'format'));
+    tabs.append(tTopic, tFormat);
+    body.append(el('div', 'cs-panel-info', mode === 'topic' ? 'Searching YouTube for this topic…' : 'Searching YouTube for this title format…'));
+    openPanel('Similar videos', tabs, body);
     const title = info?.title || document.querySelector('ytd-watch-metadata h1')?.textContent || '';
     const words = (title.toLowerCase().match(/[\p{L}\p{N}]+/gu) || []).filter((w) => w.length > 2 && !STOP.has(w));
-    const query = words.slice(0, 7).join(' ') || title;
+    const query = mode === 'format' ? formatQuery(title) : words.slice(0, 7).join(' ') || title;
     try {
       const list = (await CS.send('searchVideos', { query, exclude: info?.channelId })).filter((v) => v.id !== videoId());
       const lites = await Promise.all(list.map((v) => (v.channelId ? CS.lite(`/channel/${v.channelId}`) : null)));
@@ -183,7 +217,7 @@
         a.append(th, meta);
         rows.append(a);
       }
-      body.replaceChildren(el('div', 'cs-panel-info', `Searched “${query}” · ${list.length} videos from other channels, most viewed first. The badge is views ÷ that channel's typical views.`), rows);
+      body.replaceChildren(el('div', 'cs-panel-info', `Searched ${mode === 'format' ? query : `“${query}”`} · ${list.length} videos from other channels, most viewed first. The badge is views ÷ that channel's typical views.`), rows);
     } catch (e) {
       body.replaceChildren(el('div', 'cs-panel-info', e.message));
     }
@@ -283,7 +317,16 @@
       button('⧉ Copy frame', 'Copy the current frame', (b) => act(b, async () => copyImage(await frame()), 'Frame copied')),
       button('📝 Transcript', 'Read, copy or download the transcript', showTranscript),
       button('📌 Swipe file', 'Save this video, a part of it, or its thumbnail', showSwipe),
-      button('🔍 Similar videos', 'Same topic on other channels', showSimilarVideos),
+      button('🔍 Similar videos', 'Same topic or title format on other channels', showSimilarVideos),
+      button('🖼 Share card', 'A clean picture of this video to share', () => CS.shareCard({
+        id,
+        title: info?.title || document.querySelector('ytd-watch-metadata h1')?.textContent?.trim(),
+        channelName: info?.channelName,
+        views: info?.views,
+        ageText: info?.published ? CS.ago((Date.now() - info.published) / 86400000) : '',
+        duration: info?.lengthSeconds,
+        avatar: infoLite?.avatar,
+      })),
     );
     bar.append(meta, tools);
     host.insertAdjacentElement('afterend', bar);
@@ -291,6 +334,7 @@
       info = await CS.send('videoInfo', { videoId: id });
       if (barFor !== id) return;
       const lite = info.channelId ? await CS.lite(`/channel/${info.channelId}`) : null;
+      infoLite = lite;
       const parts = [info.published ? `Uploaded ${CS.when(info.published)}` : '', `${info.views.toLocaleString()} views`];
       if (lite?.medianViews) {
         const x = info.views / lite.medianViews;

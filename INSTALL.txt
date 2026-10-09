@@ -33,11 +33,13 @@ YOUTUBE PAR KYA MILEGA
 - Home, Search aur Subscriptions par neeche "⚡ Filter" button: loaded videos ko outlier,
   views, chhote channels, upload date, Shorts/Long ke hisaab se filter karein.
   "Load more videos" se aur videos khud load hoti hain.
-- Kisi channel ke naam par mouse rakhein: us ke stats aur latest videos dikhte hain.
+- Kisi channel ke naam par mouse rakhein: us ke stats, "Latest uploads" aur "Most popular" videos.
 - Shorts dekhte waqt kone mein box: kab upload hua, views, channel ki typical views,
   channel ki uploads aur channel ki umar.
 - Video ke title ke neeche: exact upload time, aur buttons — Thumbnail download/copy,
-  Frame screenshot, Transcript, Swipe file mein save, Similar videos.
+  Frame screenshot, Transcript, Swipe file mein save, Similar videos ("Same topic" ya
+  "Same title format"), aur 🖼 Share card (video ki saaf tasveer, background color ke saath).
+- Har video ke badge mein 📸: us video ka Share card.
 
 
 DASHBOARD (Chrome mein Channel Saver ke icon par click)
@@ -50,14 +52,26 @@ DASHBOARD (Chrome mein Channel Saver ke icon par click)
   Competitors har 30 minute check hote hain (jab Chrome khula ho): har video ka exact upload
   time, kis din aur kis waqt upload karte hain, agli video kab aayegi, pehle 24 ghante ke
   views, title changes. Nayi upload par notification aati hai.
-- 🔍 Similar channels: kisi bhi channel ka link daalein — milte-julte channels, similarity %,
-  avg views, kitne din purana, monthly uploads, last upload. "+ Save" se seedha save.
+- 🔍 Similar channels: kisi bhi channel ka link daalein. "⚡ Quick search" (~10 channels, jaldi)
+  ya "🔬 In-depth search" (~25 channels, naye competitors bhi). Similarity %, avg views, kitne din
+  purana, monthly uploads, last upload; kisi bhi column se sort karein. "+ Save" se seedha save.
 - 📌 Swipe file: YouTube se save ki hui videos, video ke hisse (hook waghaira) aur thumbnails,
   notes aur tags ke saath.
 - 🖼 Thumbnail tester: apna thumbnail aur title upload karein aur YouTube search ya apne
-  competitors ke beech dekhein ke nazar aata hai ya nahi (desktop aur mobile view).
+  competitors ke beech dekhein (desktop aur mobile view). "▶ Test on YouTube" se aap ka
+  thumbnail aap ke asal YouTube Home / Search / Subscriptions mein nazar aata hai.
 - ⚙ Settings: jo feature nahi chahiye use band kar dein.
 - Dark/Light mode: upar ◐ button.
+
+
+AUTO-BACKUP (aap ka data mehfooz)
+--------------------------------
+- Har 12 ghante saara data khud-ba-khud is folder mein save hota hai:
+  Downloads > Channel Saver Backups > channel-saver-backup-latest.json
+  (aur har din ki alag file bhi). Dashboard mein neeche "Auto-backup: …" par click karke
+  foran backup bhi le sakte hain.
+- Agar kabhi data chala jaye (jaise extension Remove ho gayi): dashboard mein
+  "⤒ Restore from backup" dabayein aur upar wali "latest" file chunein. Sab wapas aa jayega.
 
 
 AGAR MASLA HO
