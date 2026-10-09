@@ -128,7 +128,7 @@ function channelRow(c, { full = false } = {}) {
     }
   } }, saved ? '✓' : '+ Save');
   const sim = h('button.btn.small', { title: 'Similar channels', onclick: (e) => { e.preventDefault(); ctx.openSimilar(c.channelId); } }, '🔍');
-  return h('div.fd-rowcard',
+  return h('div.fd-rowcard' + (full ? '.full' : ''),
     h('a.fd-rowimg', { href: c.bestVideo ? ytVideo(c.bestVideo.id) : ytChannel(c), target: '_blank', rel: 'noopener', style: { backgroundImage: `url("${c.bestVideo ? thumb(c.bestVideo.id) : c.avatar}")` } }),
     h('a.fd-rowname', { href: ytChannel(c), target: '_blank', rel: 'noopener' }, h('b', c.title || 'Channel'), h('span', `${fmtNum(c.subs)} subscribers`)),
     full

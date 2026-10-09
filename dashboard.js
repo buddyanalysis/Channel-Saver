@@ -17,7 +17,7 @@ const VERSION = chrome.runtime.getManifest().version;
  * reloaded, so after copying new files the two can disagree — then saving
  * silently breaks. When they differ, ask for a one-click restart.
  */
-const BUILD = '1.9.0';
+const BUILD = '1.9.1';
 
 function showRestart(reason) {
   if (document.getElementById('restartBanner')) return;
@@ -490,6 +490,8 @@ function render() {
 
 /* ---------- Dashboard (home): the tools ---------- */
 
+const statLink = (k, v, s, title, go) => h('button.stat.stat-link', { title, onclick: go }, h('div.k', k), h('div.v', fmtNum(v)), h('div.s', s), h('span.stat-go', '→'));
+
 function renderHome() {
   const all = Object.values(db.channels);
   const live = all.filter((c) => c.status !== 'gone');
@@ -505,10 +507,11 @@ function renderHome() {
       h('h2', name ? `Welcome ${name}!` : 'Welcome!'),
       h('p', 'Pick a tool to start. Everything you save stays in your own Chrome.')),
     h('div.home-stats',
-      h('div.stat', h('div.k', 'Saved channels'), h('div.v', fmtNum(live.length)), h('div.s', `${db.niches.length} niche${db.niches.length === 1 ? '' : 's'}`)),
-      h('div.stat', h('div.k', 'Outlier videos'), h('div.v', fmtNum(outliers)), h('div.s', 'in your saved channels')),
-      h('div.stat', h('div.k', 'Competitors'), h('div.v', fmtNum(competitors.length)), h('div.s', 'checked every 30 min')),
-      h('div.stat', h('div.k', 'Saved videos'), h('div.v', fmtNum((db.swipe || []).length)), h('div.s', 'swipe file + niches'))),
+      // Each number opens the place where those items live.
+      statLink('Saved channels', live.length, `${db.niches.length} niche${db.niches.length === 1 ? '' : 's'}`, 'Open My Library', () => setView('all')),
+      statLink('Outlier videos', outliers, `videos ${OUTLIER_X}x+ their channel's usual views`, 'Open My Library sorted by outlier videos', () => { ui.sort = 'outliers'; setView('all'); }),
+      statLink('Competitors', competitors.length, 'checked every 30 min', 'Open Competitors', () => setView('competitors')),
+      statLink('Saved videos', (db.swipe || []).length, 'swipe file + niches', 'Open Swipe file', () => setView('swipe'))),
     h('div.side-label.home-label', h('span', 'Tools')),
     h('div.home-tools',
       tool('finder', '🧭', 'Niche Finder', 'Outlier channels, rising niches, trending keywords and viral videos on small channels — live from YouTube.'),

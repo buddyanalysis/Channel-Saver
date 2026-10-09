@@ -777,3 +777,18 @@ a.built-by { text-decoration: none; cursor: pointer; }
 .built-name { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1.5px; }
 a.built-by:hover { border-color: #e88aa0; }
 a.built-by:hover .built-name { color: #d6336c; }
+
+/* Dashboard numbers open where those items live */
+.stat-link { text-align: left; cursor: pointer; position: relative; font: inherit; color: inherit; transition: border-color .15s, transform .15s; }
+.stat-link:hover { border-color: var(--accent); transform: translateY(-1px); }
+.stat-go { position: absolute; top: 12px; right: 14px; color: var(--faint); font-size: 14px; }
+.stat-link:hover .stat-go { color: var(--accent); }
+
+/* Rows with the full stats (Future competition): numbers on their own line under the name */
+.fd-rowcard.full { grid-template-columns: 96px minmax(0, 1fr) auto; grid-template-rows: auto auto; row-gap: 6px; }
+.fd-rowcard.full .fd-rowimg { grid-row: 1 / 3; }
+.fd-rowcard.full .fd-rowname { grid-column: 2; grid-row: 1; }
+.fd-rowcard.full .fd-rowact { grid-column: 3; grid-row: 1; }
+.fd-rowcard.full .fd-rowstats { grid-column: 2 / 4; grid-row: 2; grid-template-columns: repeat(4, auto auto); justify-content: start; gap: 2px 8px; }
+.fd-rowcard.full .fd-rowstats b { text-align: left; margin-right: 10px; }
+.fd-rowcard.full .fd-rowstats span { white-space: nowrap; }

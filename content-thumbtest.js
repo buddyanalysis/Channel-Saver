@@ -10,7 +10,18 @@
   let test = null; // { active, image, title, channel, position: 'first'|'random', seed }
   let bar = null;
   let target = null; // the tile currently showing the test
-  const PAGES = ['home', 'search', 'subscriptions'];
+  // Only the Home feed, and only in the tab the test was started from (its token rides in
+  // the URL once and is kept in this tab's sessionStorage) — other tabs and Search stay untouched.
+  const PAGES = ['home'];
+  const TAB_KEY = 'cs-thumbtest-token';
+  const fromUrl = /#cs-thumbtest=(\w+)/.exec(location.hash)?.[1];
+  if (fromUrl) {
+    try { sessionStorage.setItem(TAB_KEY, fromUrl); } catch {}
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+  const thisTab = () => {
+    try { return sessionStorage.getItem(TAB_KEY); } catch { return null; }
+  };
 
   chrome.storage.local.get('thumbTest').then(({ thumbTest }) => {
     test = thumbTest || null;
@@ -107,7 +118,7 @@
       chrome.storage.local.set({ thumbTest: { ...test, active: false } });
       return;
     }
-    const on = test?.active && test.image && PAGES.includes(CS.page());
+    const on = test?.active && test.image && test.token && test.token === thisTab() && PAGES.includes(CS.page());
     if (!on) {
       restore();
       bar?.remove();

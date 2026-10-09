@@ -30,7 +30,8 @@
     aiTest: 'Testing AI key…',
   };
   // Instant bookkeeping requests: never worth a spinner.
-  const QUIET = new Set(['saveSettings', 'openDashboard', 'forgetSimilar', 'updateSwipe', 'deleteSwipe', 'setNiche', 'updateChannel', 'createNiche', 'updateNiche', 'deleteNiche', 'restart']);
+  // channelLite / lookups run by themselves while browsing YouTube — never worth a pill there.
+  const QUIET = new Set(['channelLite', 'lookup', 'videoLookup', 'videoInfo', 'channelPopular', 'saveSettings', 'openDashboard', 'forgetSimilar', 'updateSwipe', 'deleteSwipe', 'setNiche', 'updateChannel', 'createNiche', 'updateNiche', 'deleteNiche', 'restart']);
 
   const CSS = `
 .csb-pill {

@@ -725,8 +725,10 @@ function paint() {
   const live = h('button.btn', { onclick: async () => {
     const v = st.variants[st.show] || st.variants[0];
     if (!v) return ctx.toast('Upload a thumbnail first', true);
-    await chrome.storage.local.set({ thumbTest: { active: true, startedAt: Date.now(), image: v.image, title: v.title, channel: st.channel, position: 'random', seed: Math.random() } });
-    chrome.tabs.create({ url: 'https://www.youtube.com/' });
+    // The token ties the test to the one YouTube tab opened here — other tabs never show it.
+    const token = Math.random().toString(36).slice(2, 10);
+    await chrome.storage.local.set({ thumbTest: { active: true, token, startedAt: Date.now(), image: v.image, title: v.title, channel: st.channel, position: 'random', seed: Math.random() } });
+    chrome.tabs.create({ url: `https://www.youtube.com/#cs-thumbtest=${token}` });
   } }, '▶ Test inside YouTube');
 
   const tabs = h('div.seg.ctr-tabs', [['preview', '👁 Preview'], ['score', '📊 Score'], ['improve', '🚀 Improve CTR'], ['test', '🖱 Click test']].map(([k, label]) =>
