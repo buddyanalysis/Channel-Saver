@@ -893,6 +893,8 @@ setTimeout(async () => {
     if (autoActivated?.version !== version) {
       await chrome.storage.local.set({ autoActivated: { version, at: Date.now() } });
       await chrome.storage.session.set({ seenSent: true });
+      // The saved "update available" notice is about the version just installed: ask again.
+      checkUpdate().catch(() => {});
       return autoActivate('activate');
     }
     const { seenSent } = await chrome.storage.session.get(['seenSent']);

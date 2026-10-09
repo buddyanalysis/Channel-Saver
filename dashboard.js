@@ -17,7 +17,7 @@ const VERSION = chrome.runtime.getManifest().version;
  * reloaded, so after copying new files the two can disagree — then saving
  * silently breaks. When they differ, ask for a one-click restart.
  */
-const BUILD = '1.9.5';
+const BUILD = '1.9.6';
 
 function showRestart(reason) {
   if (document.getElementById('restartBanner')) return;
@@ -1057,7 +1057,13 @@ function renderUpdate() {
   const u = db.settings.update;
   const box = $('updateBanner');
   $('versionBtn').textContent = `Version ${VERSION} · Check for updates`;
-  if (!u) {
+  // The saved notice can be from before this update was installed: only show a newer version.
+  const newer = (a, b) => {
+    const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number);
+    for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
+    return false;
+  };
+  if (!u || !newer(u.version, VERSION)) {
     box.hidden = true;
     return;
   }
