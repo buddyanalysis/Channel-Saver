@@ -1,5 +1,5 @@
 {
-  "version": "1.9.1",
+  "version": "1.9.2",
   "download": "https://github.com/buddyanalysis/Channel-Saver/releases/latest/download/channel-saver.zip",
-  "notes": "CTR test stays in its own tab; quieter YouTube browsing; clickable dashboard numbers."
+  "notes": "Dashboard now fits phones and tablets."
 }
