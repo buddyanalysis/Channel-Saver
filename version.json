@@ -1,5 +1,5 @@
 {
-    "version":  "1.9.6",
-    "download":  "https://github.com/buddyanalysis/Channel-Saver/releases/download/v1.9.6/channel-saver-1.9.6.zip",
-    "notes":  "The update banner no longer stays after you have installed that version."
+    "version":  "1.9.7",
+    "download":  "https://github.com/buddyanalysis/Channel-Saver/releases/download/v1.9.7/channel-saver-1.9.7.zip",
+    "notes":  "A key turned off on letrestart.com now stops the extension within about a minute."
 }
