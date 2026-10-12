@@ -46,8 +46,10 @@ async function runFinder({ window = 'week', maxSubs = 50000, lang = 'any', categ
 // What works before activation: the activation screen itself, updates and backups.
 const OPEN_REQUESTS = new Set(['activate', 'deactivate', 'licenseStatus', 'checkUpdate', 'restart', 'openDashboard', 'backupNow', 'fpResult']);
 const LOCKED = 'Channel Saver is not activated. Open the Channel Saver dashboard and enter your activation key.';
-const LIC_HOUR = 3600000; // (HOUR is declared further down)
-const CHECK_EVERY = 6 * LIC_HOUR;
+// Re-ask letrestart.com about once a minute while Chrome is open, so a key the admin turns off
+// stops working within a minute (the 'licence' alarm below drives it).
+const CHECK_EVERY = 55 * 1000;
+const OFFLINE_RETRY = 5 * 60000;
 
 /** This computer's id: made once, kept for good (sent with every key request). */
 async function deviceId() {
@@ -117,8 +119,8 @@ async function license({ force = false } = {}) {
       return next;
     } catch (e) {
       // Offline or server trouble is never a verdict on the key: an activated key stays
-      // active until the user removes it or the website answers ok:false. Ask again in an hour.
-      const next = { ...lic, checkedAt: Date.now() - CHECK_EVERY + LIC_HOUR };
+      // active until the user removes it or the website answers ok:false. Ask again in 5 minutes.
+      const next = { ...lic, checkedAt: Date.now() - CHECK_EVERY + OFFLINE_RETRY };
       await chrome.storage.local.set({ license: next });
       return next;
     } finally {
@@ -454,7 +456,7 @@ const HANDLERS = {
   },
   licenseStatus: async () => {
     const { license: lic } = await chrome.storage.local.get(['license']);
-    return publicInfo(await license({ force: !!lic?.key && Date.now() - (lic.checkedAt || 0) > LIC_HOUR }));
+    return publicInfo(await license({ force: !!lic?.key && Date.now() - (lic.checkedAt || 0) > CHECK_EVERY }));
   },
 
   ai: runAi,
@@ -905,6 +907,10 @@ setTimeout(async () => {
     /* tries again next start */
   }
 }, 3000);
+// Licence check every minute (Chrome keeps alarms across background restarts; create it once).
+chrome.alarms.get('licence').then((a) => a || chrome.alarms.create('licence', { periodInMinutes: 1, delayInMinutes: 1 })).catch(() => {});
+
 chrome.alarms.onAlarm.addListener((a) => {
   if (a.name === 'refresh') tick().catch(() => {});
+  if (a.name === 'licence') license().catch(() => {});
 });
